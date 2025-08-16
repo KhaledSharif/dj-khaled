@@ -131,8 +131,9 @@ class MusicProducer:
         model: MusicGen,
         prompt: str,
         duration: float,
-        use_style: bool = False,
         continuation_audio: Optional[torch.Tensor] = None,
+        style_audio: Optional[torch.Tensor] = None,
+        use_style: bool = False,
     ) -> torch.Tensor:
         """Generate a single section of audio with best practices."""
         actual_duration = min(duration, 30.0)
@@ -140,7 +141,7 @@ class MusicProducer:
         wav = None
 
         try:
-            if use_style and self.style_audio is not None and "style" in model.name:
+            if use_style and style_audio is not None and "style" in model.name:
                 logger.info(f"Generating with style conditioning: '{prompt}'")
                 style_config = self.advanced.get("style_reference", {})
                 model.set_style_conditioner_params(
@@ -148,7 +149,7 @@ class MusicProducer:
                 )
                 wav = model.generate_with_chroma(
                     descriptions=[prompt],
-                    melody_wavs=self.style_audio,
+                    melody_wavs=style_audio,
                     melody_sample_rate=self.sample_rate,
                 )
 
@@ -246,7 +247,7 @@ class MusicProducer:
         return output
 
     def generate_layer(self, layer_config: Dict) -> torch.Tensor:
-        """Generate all sections for a single layer."""
+        """Generate all sections for a single layer with overlap-based transitions."""
         layer_name = layer_config["name"]
         model_name = layer_config.get("model", "facebook/musicgen-small")
         model = self.get_model(model_name)
@@ -263,8 +264,24 @@ class MusicProducer:
         layer_audio = torch.zeros(1, total_samples, device=model.device)
 
         last_section_audio = None
+        style_reference = None
+        
+        # Sort sections by start time to ensure proper continuation
+        sorted_sections = sorted(
+            layer_config.get("sections", []),
+            key=lambda x: self.sections[x["section"]]["start"]
+        )
+        
+        # Generate initial style reference if using style model
+        if use_style and sorted_sections:
+            first_section = sorted_sections[0]
+            style_prompt = layer_config.get("style_prompt", first_section.get("prompt", ""))
+            logger.info(f"Generating style reference for layer '{layer_name}'")
+            style_reference = self.generate_section(
+                model, style_prompt, 8.0, None, self.style_audio, False
+            )
 
-        for section_config in layer_config.get("sections", []):
+        for idx, section_config in enumerate(sorted_sections):
             section_name = section_config["section"]
             section_info = self.sections[section_name]
 
@@ -273,17 +290,30 @@ class MusicProducer:
             start_time = section_info["start"]
             volume = section_config.get("volume", 1.0)
 
+            # Overlap-based generation for natural transitions
             continuation_audio = None
-            if section_config.get("use_continuation") and last_section_audio is not None:
-                # Trim continuation audio to be 80% of target duration to ensure it's shorter
-                max_continuation_duration = duration * 0.8
-                max_continuation_samples = int(max_continuation_duration * self.sample_rate)
-                if last_section_audio.shape[-1] > max_continuation_samples:
-                    continuation_audio = last_section_audio[..., -max_continuation_samples:]
-                    logger.info(f"Trimmed continuation audio from {last_section_audio.shape[-1]/self.sample_rate:.1f}s to {max_continuation_samples/self.sample_rate:.1f}s")
+            transitions = self.advanced.get("transitions", {})
+            overlap_duration = transitions.get("overlap_duration", 4.0)  # Generate extra bars for overlap
+            enable_continuation = section_config.get("use_continuation", idx > 0)
+            
+            # Generate with overlap if not the first section
+            actual_duration = duration
+            if idx > 0 and enable_continuation:
+                actual_duration = duration + overlap_duration
+                logger.info(f"Generating {actual_duration:.1f}s (includes {overlap_duration:.1f}s overlap) for section '{section_name}'")
+            
+            if enable_continuation and last_section_audio is not None:
+                # Use full musical context from previous section
+                continuation_window = min(10.0, last_section_audio.shape[-1] / self.sample_rate)
+                continuation_samples = int(continuation_window * self.sample_rate)
+                
+                if last_section_audio.shape[-1] > continuation_samples:
+                    continuation_audio = last_section_audio[..., -continuation_samples:]
+                    logger.info(f"Using last {continuation_samples/self.sample_rate:.1f}s for continuation")
                 else:
                     continuation_audio = last_section_audio
-
+                    logger.info(f"Using full previous section for continuation")
+            
             cache_key = self.get_cache_key(
                 layer_name, section_name, prompt, use_style, continuation_audio is not None
             )
@@ -291,7 +321,12 @@ class MusicProducer:
 
             if section_audio is None:
                 section_audio = self.generate_section(
-                    model, prompt, duration, use_style, continuation_audio
+                    model,
+                    prompt,
+                    actual_duration,  # Use extended duration for overlap
+                    continuation_audio,
+                    style_reference if use_style else self.style_audio,  # Use consistent style reference
+                    use_style,
                 )
                 self.save_to_cache(cache_key, section_audio)
 
@@ -312,10 +347,17 @@ class MusicProducer:
             )
 
             section_audio *= volume
+            
+            # Trim overlap from generated audio to get the actual section
+            if idx > 0 and enable_continuation and section_audio.shape[-1] > duration * self.sample_rate:
+                # Keep the overlap portion at the beginning (it's the natural transition)
+                # Trim from the end to match target duration
+                target_samples = int(duration * self.sample_rate)
+                section_audio = section_audio[..., :target_samples]
+                logger.info(f"Trimmed section to {target_samples/self.sample_rate:.1f}s after overlap generation")
+            
             last_section_audio = section_audio.clone()
-
             start_sample = int(start_time * self.sample_rate)
-            end_sample = start_sample + section_audio.shape[-1]
             if start_sample >= total_samples:
                 continue
 

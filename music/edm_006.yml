@@ -1,0 +1,58 @@
+song:
+  name: "Quick Test Track"
+  output_file: "output/quick_test_001.wav"
+  sample_rate: 32000
+  master_volume: 1.0
+  bpm: 128
+
+sections:
+  intro: { start: 0, duration: 8 }
+  buildup: { start: 8, duration: 8 }
+  drop: { start: 16, duration: 24 }
+  breakdown: { start: 40, duration: 12 }
+  outro: { start: 52, duration: 8 }
+
+layers:
+- name: "drums"
+  model: "facebook/musicgen-small"
+  sections:
+  - { section: "intro", prompt: "Minimal four-on-the-floor kick drum at 128 bpm, subtle hi-hats, in C minor", volume: 0.7 }
+  - { section: "buildup", prompt: "Building from minimal kick into driving beat with snare roll, 128 bpm, in C minor", volume: 0.8, use_continuation: true }
+  - { section: "drop", prompt: "Exploding from snare roll into powerful EDM kick and snare, energetic house beat, 128 bpm, in C minor", volume: 1.0, use_continuation: true, loop: true }
+  - { section: "breakdown", prompt: "Transitioning from energetic to filtered kick with reverb, atmospheric, 128 bpm, in C minor", volume: 0.6, use_continuation: true }
+  - { section: "outro", prompt: "Winding down to simple kick with heavy reverb, fading out, 128 bpm, in C minor", volume: 0.4, fade_out: true, use_continuation: true }
+
+- name: "bass"
+  model: "facebook/musicgen-small"
+  sections:
+  - { section: "intro", prompt: "Deep sub bass, single long notes, minimal, 128 bpm, in C minor", volume: 0.6 }
+  - { section: "buildup", prompt: "Building from simple bass into rhythmic pattern, 128 bpm, in C minor", volume: 0.7, use_continuation: true }
+  - { section: "drop", prompt: "Evolving into driving EDM sub bass, side-chained to kick, energetic, 128 bpm, in C minor", volume: 0.9, loop: true, use_continuation: true }
+  - { section: "breakdown", prompt: "Morphing to atmospheric bass pad, deep and sustained, 128 bpm, in C minor", volume: 0.5, use_continuation: true }
+  - { section: "outro", prompt: "Resolving to single sustained note, fading with reverb, 128 bpm, in C minor", volume: 0.4, fade_out: true, use_continuation: true }
+
+- name: "lead"
+  model: "facebook/musicgen-small"
+  sections:
+  - { section: "buildup", prompt: "Rising synth arpeggio, filter opening up, building tension, 128 bpm, in C minor", volume: 0.7 }
+  - { section: "drop", prompt: "Exploding from arpeggio into euphoric trance lead melody, powerful, 128 bpm, in C minor", volume: 0.9, loop: true, use_continuation: true }
+  - { section: "breakdown", prompt: "Transitioning to gentle piano melody, emotional with reverb, 128 bpm, in C minor", volume: 0.7, use_continuation: true }
+  - { section: "outro", prompt: "Resolving to simple pad chord, fading slowly, 128 bpm, in C minor", volume: 0.4, fade_out: true, use_continuation: true }
+
+processing:
+  normalization_strategy: "loudness"
+  normalize_db: -12
+  prevent_clipping: true
+
+advanced:
+  generation_params:
+    temperature: 0.8
+    top_k: 250
+    top_p: 0.0
+    cfg_coef: 3.5
+  use_cache: true
+  cache_dir: "cache/quick_test/"
+  transitions:
+    enable_auto_continuation: true
+    overlap_duration: 4.0
+    continuation_window: 10.0
