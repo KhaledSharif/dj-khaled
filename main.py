@@ -340,14 +340,28 @@ class MusicProducer:
         bpm: int = 128,
     ) -> torch.Tensor:
         """Loop audio with beat-aligned crossfade"""
-        audio_length = audio.shape[-1] if audio.numel() > 0 else 0
+        # Handle both 1D and 2D tensors
+        if audio.dim() == 2:
+            # Process 2D tensor (channels, samples)
+            num_channels = audio.shape[0]
+            audio_length = audio.shape[1]
+        else:
+            # Process 1D tensor
+            num_channels = None
+            audio_length = audio.shape[0] if audio.numel() > 0 else 0
         
         # Handle empty audio
         if audio_length == 0:
-            return torch.zeros(target_samples, device=audio.device if hasattr(audio, 'device') else 'cpu')
+            if num_channels is not None:
+                return torch.zeros((num_channels, target_samples), device=audio.device if hasattr(audio, 'device') else 'cpu')
+            else:
+                return torch.zeros(target_samples, device=audio.device if hasattr(audio, 'device') else 'cpu')
         
         if audio_length >= target_samples:
-            return audio[:target_samples]
+            if num_channels is not None:
+                return audio[:, :target_samples]
+            else:
+                return audio[:target_samples]
 
         # Calculate beat-aligned crossfade
         beat_duration = 60.0 / bpm  # seconds per beat
@@ -359,7 +373,12 @@ class MusicProducer:
         crossfade_samples = min(crossfade_samples, audio_length // 4)
 
         device = audio.device
-        result = torch.zeros(target_samples, device=device)
+        
+        # Create result tensor with appropriate shape
+        if num_channels is not None:
+            result = torch.zeros((num_channels, target_samples), device=device)
+        else:
+            result = torch.zeros(target_samples, device=device)
 
         effective_loop_length = audio_length - crossfade_samples
         num_full_loops = target_samples // effective_loop_length
@@ -371,7 +390,10 @@ class MusicProducer:
 
             if i == 0:
                 end_pos = min(current_pos + audio_length, target_samples)
-                result[current_pos:end_pos] = audio[: end_pos - current_pos]
+                if num_channels is not None:
+                    result[:, current_pos:end_pos] = audio[:, : end_pos - current_pos]
+                else:
+                    result[current_pos:end_pos] = audio[: end_pos - current_pos]
                 current_pos = audio_length - crossfade_samples
             else:
                 # S-curve crossfade for smoother transitions
@@ -381,10 +403,20 @@ class MusicProducer:
                 fade_out = 1 - fade_in
 
                 if current_pos + crossfade_samples <= target_samples:
-                    result[current_pos : current_pos + crossfade_samples] *= fade_out
-                    result[current_pos : current_pos + crossfade_samples] += (
-                        audio[:crossfade_samples] * fade_in
-                    )
+                    if num_channels is not None:
+                        # Handle 2D tensor crossfade
+                        fade_in = fade_in.unsqueeze(0)  # Add channel dimension
+                        fade_out = fade_out.unsqueeze(0)
+                        result[:, current_pos : current_pos + crossfade_samples] *= fade_out
+                        result[:, current_pos : current_pos + crossfade_samples] += (
+                            audio[:, :crossfade_samples] * fade_in
+                        )
+                    else:
+                        # Handle 1D tensor crossfade
+                        result[current_pos : current_pos + crossfade_samples] *= fade_out
+                        result[current_pos : current_pos + crossfade_samples] += (
+                            audio[:crossfade_samples] * fade_in
+                        )
 
                 remaining_samples = min(
                     audio_length - crossfade_samples,
@@ -392,9 +424,14 @@ class MusicProducer:
                 )
                 if remaining_samples > 0:
                     end_pos = current_pos + crossfade_samples + remaining_samples
-                    result[current_pos + crossfade_samples : end_pos] = audio[
-                        crossfade_samples : crossfade_samples + remaining_samples
-                    ]
+                    if num_channels is not None:
+                        result[:, current_pos + crossfade_samples : end_pos] = audio[
+                            :, crossfade_samples : crossfade_samples + remaining_samples
+                        ]
+                    else:
+                        result[current_pos + crossfade_samples : end_pos] = audio[
+                            crossfade_samples : crossfade_samples + remaining_samples
+                        ]
 
                 current_pos += effective_loop_length
 
