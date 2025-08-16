@@ -5,7 +5,9 @@ This directory contains YAML configuration files for generating music with the A
 ## Available Configurations
 
 ### edm_001.yml
-**Complex EDM Track - "Ascension Anthem"**
+
+#### Complex EDM Track - "Ascension Anthem"
+
 - Full EDM arrangement with 7 sections
 - 4 layers: drums, bass, lead synth, fx/risers
 - 150 seconds total duration
@@ -13,7 +15,9 @@ This directory contains YAML configuration files for generating music with the A
 - Advanced production techniques
 
 ### edm_002.yml
-**Simplified EDM Track - "Smooth Flow"**
+
+#### Simplified EDM Track - "Smooth Flow"
+
 - Streamlined 3-section structure
 - Focus on coherence and smooth transitions
 - 96 seconds duration
@@ -21,13 +25,17 @@ This directory contains YAML configuration files for generating music with the A
 - Optimized for pleasant, continuous listening
 
 ### music.yml
-**Basic Example Configuration**
+
+#### Basic Example Configuration
+
 - Simple structure for learning
 - Minimal layer setup
 - Good starting point for new compositions
 
 ### test_fixes.yml
-**Bug Fix Test Configuration**
+
+#### Bug Fix Test Configuration
+
 - Demonstrates all bug fixes
 - Tests start_offset, looping, conditioning
 - Validates normalization strategies
@@ -36,6 +44,7 @@ This directory contains YAML configuration files for generating music with the A
 ## Configuration Structure
 
 ### Basic Structure
+
 ```yaml
 song:
   name: "Song Name"
@@ -64,7 +73,9 @@ layers:
 ## Musical Guidelines
 
 ### Tempo Consistency
+
 Maintain consistent BPM across all prompts in a song:
+
 - Slow: 60-90 BPM (ballads, ambient)
 - Medium: 90-120 BPM (pop, rock)
 - Fast: 120-140 BPM (EDM, dance)
@@ -73,6 +84,7 @@ Maintain consistent BPM across all prompts in a song:
 ### Prompt Writing Tips
 
 #### Drums
+
 ```yaml
 prompt: "Four-on-the-floor kick drum at 128 bpm, crisp hi-hats"
 prompt: "Breakbeat drums at 140 bpm, syncopated snare"
@@ -80,6 +92,7 @@ prompt: "Trap drums at 70 bpm, rolling hi-hats, deep 808 kick"
 ```
 
 #### Bass
+
 ```yaml
 prompt: "Deep sub bass following kick pattern, warm and round"
 prompt: "Funky slap bass, syncopated groove"
@@ -87,6 +100,7 @@ prompt: "Acid bass line, filter sweeps, resonant"
 ```
 
 #### Melody/Lead
+
 ```yaml
 prompt: "Euphoric trance lead, major key, soaring melody"
 prompt: "Dark techno stabs, minor key, metallic"
@@ -94,6 +108,7 @@ prompt: "Gentle piano melody, emotional, with reverb"
 ```
 
 #### Atmosphere/FX
+
 ```yaml
 prompt: "Ambient pad, warm texture, slow evolution"
 prompt: "White noise riser, building tension"
@@ -103,6 +118,7 @@ prompt: "Vinyl crackle, vintage atmosphere"
 ## Section Design
 
 ### Common EDM Structure
+
 ```yaml
 sections:
   intro:
@@ -135,7 +151,9 @@ sections:
 ```
 
 ### Bar to Second Conversion
+
 At 128 BPM:
+
 - 1 bar = 1.875 seconds
 - 4 bars = 7.5 seconds
 - 8 bars = 15 seconds
@@ -145,12 +163,14 @@ At 128 BPM:
 ## Layer Strategies
 
 ### Foundation First
+
 1. Start with drums (rhythmic foundation)
 2. Add bass (harmonic foundation)
 3. Add lead/melody (main musical content)
 4. Add atmosphere/fx (polish and texture)
 
 ### Conditioning Chain
+
 ```yaml
 layers:
   - name: "drums"
@@ -172,7 +192,9 @@ layers:
 ## Advanced Techniques
 
 ### Dynamic Sections
+
 Use volume and effects to create dynamics:
+
 ```yaml
 sections:
   - section: "intro"
@@ -190,7 +212,9 @@ sections:
 ```
 
 ### Looping Short Generations
+
 For consistent patterns:
+
 ```yaml
 sections:
   - section: "main"
@@ -199,7 +223,9 @@ sections:
 ```
 
 ### Delayed Entry
+
 Use start_offset for dramatic effect:
+
 ```yaml
 sections:
   - section: "intro"
@@ -210,6 +236,7 @@ sections:
 ## Processing Options
 
 ### Normalization Strategies
+
 ```yaml
 processing:
   normalization_strategy: "loudness"  # Best for streaming
@@ -221,6 +248,7 @@ processing:
 ```
 
 ### Generation Parameters
+
 ```yaml
 advanced:
   generation_params:
@@ -233,28 +261,35 @@ advanced:
 ## Creating New Configurations
 
 ### Step 1: Define Structure
+
 Decide on:
+
 - Total duration
 - Number of sections
 - Section transitions
 
 ### Step 2: Design Layers
+
 Plan:
+
 - Which instruments/sounds
 - How they interact
 - When they enter/exit
 
 ### Step 3: Write Prompts
+
 - Be specific but not overly complex
 - Include tempo/BPM
 - Describe tone/mood
 
 ### Step 4: Set Processing
+
 - Choose normalization strategy
 - Set appropriate volume levels
 - Enable caching for iteration
 
 ### Step 5: Test and Refine
+
 - Generate with caching enabled
 - Listen and adjust prompts
 - Fine-tune volumes and effects
@@ -262,16 +297,19 @@ Plan:
 ## Tips for Success
 
 ### Coherence
+
 - Use consistent BPM throughout
 - Keep similar tonal/key centers
 - Use conditioning for harmonic alignment
 
 ### Quality
+
 - Longer sections generate better than many short ones
 - Simple, clear prompts work better than complex ones
 - Use appropriate models (melody model for melodic content)
 
 ### Performance
+
 - Enable caching during development
 - Start with shorter test durations
 - Use smaller models for drafts
@@ -279,21 +317,25 @@ Plan:
 ## Common Issues and Solutions
 
 ### Abrupt Transitions
+
 - Use fade effects
 - Overlap sections slightly
 - Condition new layers on existing ones
 
 ### Inconsistent Rhythm
+
 - Always specify BPM in prompts
 - Use conditioning on drum layer
 - Keep rhythmic descriptors consistent
 
 ### Poor Mix Balance
+
 - Adjust layer volumes
 - Use normalization strategies
 - Leave headroom (master_volume < 1.0)
 
 ### Generation Takes Too Long
+
 - Enable caching
 - Reduce section durations for testing
 - Use smaller models initially
@@ -301,18 +343,21 @@ Plan:
 ## Example Workflows
 
 ### Quick Test
+
 1. Copy `edm_002.yml`
 2. Modify prompts for your genre
 3. Reduce durations for testing
 4. Generate with cache enabled
 
 ### From Scratch
+
 1. Start with `music.yml` template
 2. Add sections incrementally
 3. Test each layer individually
 4. Combine and adjust volumes
 
 ### Remix/Variation
+
 1. Take existing configuration
 2. Keep structure, change prompts
 3. Adjust tempos and keys

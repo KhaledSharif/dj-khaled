@@ -5,7 +5,9 @@ Comprehensive test suite for the AudioCraft music generation system, including u
 ## Test Structure
 
 ### test_main.py
+
 Core functionality tests covering:
+
 - Model loading and caching
 - Audio generation and processing
 - Layer generation with conditioning
@@ -14,14 +16,18 @@ Core functionality tests covering:
 - Complete production workflow
 
 ### test_coverage.py
+
 Additional tests for complete code coverage:
+
 - Error handling scenarios
 - Edge cases in audio processing
 - Alternative code paths
 - Boundary conditions
 
 ### test_corner_cases.py
+
 Advanced corner case testing:
+
 - Numerical edge cases (NaN, Inf, extreme values)
 - Configuration validation
 - Audio processing boundaries
@@ -32,6 +38,7 @@ Advanced corner case testing:
 ## Running Tests
 
 ### Run All Tests
+
 ```bash
 # From repository root
 python run_tests.py
@@ -42,6 +49,7 @@ python -m unittest discover
 ```
 
 ### Run Specific Test Files
+
 ```bash
 cd tests
 python test_main.py
@@ -50,12 +58,14 @@ python test_corner_cases.py
 ```
 
 ### Run Specific Test Classes
+
 ```bash
 python -m unittest test_main.TestAudioGeneration
 python -m unittest test_corner_cases.TestNumericalEdgeCases
 ```
 
 ### Run Specific Test Methods
+
 ```bash
 python -m unittest test_main.TestAudioGeneration.test_generate_section_with_conditioning
 ```
@@ -63,6 +73,7 @@ python -m unittest test_main.TestAudioGeneration.test_generate_section_with_cond
 ## Test Coverage
 
 To measure code coverage:
+
 ```bash
 pip install coverage
 coverage run -m unittest discover tests
@@ -73,17 +84,20 @@ coverage html  # Generate HTML report
 ## Test Categories
 
 ### Unit Tests
+
 - Individual method testing
 - Mock external dependencies
 - Isolated functionality verification
 
 ### Integration Tests
+
 - Multi-component interaction
 - Full production pipeline
 - Conditioning chains
 - Cache integration
 
 ### Edge Case Tests
+
 - Boundary value testing
 - Error conditions
 - Resource limits
@@ -92,6 +106,7 @@ coverage html  # Generate HTML report
 ## Common Test Patterns
 
 ### Mocking MusicGen Models
+
 ```python
 with patch("main.MusicGen") as mock_musicgen:
     mock_model = MagicMock()
@@ -100,6 +115,7 @@ with patch("main.MusicGen") as mock_musicgen:
 ```
 
 ### Testing with Temporary Files
+
 ```python
 def setUp(self):
     self.temp_dir = tempfile.mkdtemp()
@@ -109,6 +125,7 @@ def tearDown(self):
 ```
 
 ### Asserting Tensor Properties
+
 ```python
 # Check tensor shape
 self.assertEqual(result.shape, (expected_samples,))
@@ -123,7 +140,9 @@ self.assertTrue(torch.allclose(expected, actual))
 ## Test Fixtures
 
 ### Sample Configurations
+
 Tests use minimal YAML configurations for speed:
+
 ```python
 config = {
     "song": {"name": "Test", "sample_rate": 32000},
@@ -133,6 +152,7 @@ config = {
 ```
 
 ### Mock Audio Data
+
 ```python
 # Generate mock audio tensors
 mock_audio = torch.randn(32000 * duration)  # Random audio
@@ -149,6 +169,7 @@ mock_audio = torch.zeros(32000 * duration)  # Silent audio
 ## Writing New Tests
 
 ### Test Structure Template
+
 ```python
 class TestNewFeature(unittest.TestCase):
     def setUp(self):
@@ -172,6 +193,7 @@ class TestNewFeature(unittest.TestCase):
 ```
 
 ### Best Practices
+
 1. **Isolation**: Each test should be independent
 2. **Clear Names**: Test names should describe what they test
 3. **Single Responsibility**: Test one thing per test method
@@ -181,17 +203,21 @@ class TestNewFeature(unittest.TestCase):
 ## Debugging Failed Tests
 
 ### Verbose Output
+
 ```bash
 python -m unittest test_main -v
 ```
 
 ### Run with Python Debugger
+
 ```bash
 python -m pdb test_main.py
 ```
 
 ### Print Debug Information
+
 Add print statements or use logging:
+
 ```python
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -200,6 +226,7 @@ logging.basicConfig(level=logging.DEBUG)
 ## Continuous Integration
 
 Tests should be run:
+
 - Before committing changes
 - In CI/CD pipelines
 - After dependency updates
@@ -208,12 +235,14 @@ Tests should be run:
 ## Test Maintenance
 
 ### Adding Tests for New Features
+
 1. Write tests before implementation (TDD)
 2. Cover happy path and error cases
 3. Test boundary conditions
 4. Add integration tests for complex features
 
 ### Updating Tests for Changes
+
 1. Update mocks when signatures change
 2. Adjust assertions for new behavior
 3. Add tests for bug fixes
@@ -222,6 +251,7 @@ Tests should be run:
 ## Performance Testing
 
 For performance-critical code:
+
 ```python
 import time
 

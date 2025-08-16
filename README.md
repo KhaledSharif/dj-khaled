@@ -14,6 +14,7 @@ A powerful layered music generation system built on Meta's AudioCraft/MusicGen m
 
 1. Clone this repository
 2. Install dependencies:
+
 ```bash
 pip install audiocraft torch torchaudio pyyaml
 ```
@@ -105,31 +106,27 @@ advanced:
 ## Key Features Explained
 
 ### Layered Generation
+
 Layers are generated sequentially, allowing each layer to be conditioned on previous ones for musical coherence.
 
 ### Conditioning System
+
 The `condition_on` parameter allows layers to use previous layers as context, creating harmonically and rhythmically aligned music.
 
 ### Audio Effects
+
 - **Looping with Crossfade**: Seamlessly loop short generations to fill longer sections
 - **Fade Effects**: Apply fade in/out to audio sections
 - **Volume Control**: Per-section volume adjustment
 
 ### Smart Caching
+
 The system caches generated sections, speeding up iterative composition and experimentation.
-
-### Bug Fixes
-This implementation includes fixes for several hidden bugs in audio generation:
-1. Proper duration handling with start_offset
-2. Extended conditioning context (up to 8 seconds)
-3. Smooth crossfade looping
-4. Resolved normalization conflicts
-
-See [BUG_FIXES.md](BUG_FIXES.md) for detailed information.
 
 ## Advanced Usage
 
 ### Using Different Models
+
 ```yaml
 layers:
   - name: "melody"
@@ -137,6 +134,7 @@ layers:
 ```
 
 ### Conditional Generation Chains
+
 ```yaml
 layers:
   - name: "drums"
@@ -148,6 +146,7 @@ layers:
 ```
 
 ### Manual Normalization Control
+
 ```yaml
 processing:
   normalization_strategy: "manual"
@@ -157,11 +156,13 @@ processing:
 ## Testing
 
 Run the test suite:
+
 ```bash
 python run_tests.py
 ```
 
 Or run specific test files:
+
 ```bash
 cd tests
 python test_main.py
@@ -198,16 +199,19 @@ Contributions are welcome! Please ensure all tests pass before submitting PRs.
 ## Troubleshooting
 
 ### Out of Memory Errors
+
 - Reduce section durations
 - Use smaller models (musicgen-small)
 - Ensure cache directory has sufficient space
 
 ### Poor Audio Quality
+
 - Check your prompts for consistency
 - Enable full conditioning
 - Adjust generation parameters (temperature, cfg_coef)
 
 ### Generation Takes Too Long
+
 - Enable caching
 - Use GPU if available
 - Generate shorter sections
