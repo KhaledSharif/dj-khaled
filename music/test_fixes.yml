@@ -1,0 +1,79 @@
+# Test configuration to demonstrate the bug fixes
+song:
+  name: "Bug Fix Test"
+  output_file: "output/bug_fix_test.wav"
+  sample_rate: 32000
+  master_volume: 1.0
+  
+sections:
+  intro:
+    start: 0
+    duration: 8
+    
+  main:
+    start: 8
+    duration: 16
+    
+  outro:
+    start: 24
+    duration: 8
+
+layers:
+  - name: "drums"
+    model: "facebook/musicgen-small"
+    sections:
+      - section: "intro"
+        prompt: "Simple kick drum pattern at 120 bpm, four on the floor"
+        volume: 0.8
+      - section: "main"
+        prompt: "Energetic drum pattern with kick, snare, hi-hats at 120 bpm"
+        volume: 1.0
+      - section: "outro"
+        prompt: "Fading drum pattern at 120 bpm"
+        volume: 0.6
+        fade_out: true
+
+  - name: "bass"
+    model: "facebook/musicgen-small"
+    condition_on: ["drums"]
+    sections:
+      # Test Fix 1: start_offset should not shorten duration
+      - section: "intro"
+        prompt: "Deep sub bass line, rhythmic"
+        volume: 0.7
+        start_offset: 2.0  # Should start at 2s but still play for full 8s
+      - section: "main"
+        prompt: "Driving bass line, energetic"
+        volume: 0.9
+        # Test Fix 3: Loop with crossfade
+        loop: true  # Will loop if generated audio is shorter than 16s
+
+  - name: "melody"
+    model: "facebook/musicgen-melody"
+    condition_on: ["drums", "bass"]  # Test Fix 2: Uses full conditioning
+    sections:
+      - section: "main"
+        prompt: "Catchy synth melody, uplifting"
+        volume: 0.8
+      - section: "outro"
+        prompt: "Gentle fading melody"
+        volume: 0.5
+        fade_out: true
+
+processing:
+  # Test Fix 4: Clear normalization strategy
+  normalization_strategy: "loudness"  # Can be "loudness", "peak", or "manual"
+  normalize: true
+  normalize_db: -14
+  prevent_clipping: true
+  
+advanced:
+  generation_params:
+    temperature: 1.0
+    top_k: 250
+    top_p: 0.0
+    cfg_coef: 3.0
+  use_cache: true
+  cache_dir: "cache/bug_fix_test/"
+  # New option for Fix 2
+  use_full_conditioning: true  # Use full audio context instead of just last 2 seconds

@@ -1,0 +1,14 @@
+venv/
+test_cache/
+.claude/
+cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+*.pyd
+*.egg
+*.egg-info
+*.wav
+*.log
