@@ -1,0 +1,76 @@
+song:
+  name: "Ascension Anthem"
+  output_file: "output/ascension_anthem_002.wav"
+  sample_rate: 32000
+  master_volume: 1.0
+  bpm: 128
+
+sections:
+  intro: { start: 0, duration: 15 }
+  build_up_1: { start: 15, duration: 15 }
+  drop_1: { start: 30, duration: 30 }
+  breakdown: { start: 60, duration: 30 }
+  build_up_2: { start: 90, duration: 15 }
+  drop_2: { start: 105, duration: 30 }
+  outro: { start: 135, duration: 15 }
+
+layers:
+- name: "drums"
+  model: "facebook/musicgen-style"
+  use_style: true
+  sections:
+  - { section: "intro", prompt: "Minimal four-on-the-floor kick drum at 128 bpm, distant hi-hats, in C minor", volume: 0.7 }
+  - { section: "build_up_1", prompt: "Driving four-on-the-floor kick with a clap, building snare roll, 128 bpm, in C minor", volume: 0.8, use_continuation: true }
+  - { section: "drop_1", prompt: "Hard-hitting EDM kick drum, powerful snare, crisp hi-hats, energetic house beat, 128 bpm, in C minor", volume: 1.0 }
+  - { section: "breakdown", prompt: "Filtered kick drum with heavy reverb, no snare, atmospheric percussion, 128 bpm, in C minor", volume: 0.6 }
+  - { section: "build_up_2", prompt: "Intensifying kick with a fast snare roll, rising hi-hat pitch, 128 bpm, in C minor", volume: 0.9, use_continuation: true }
+  - { section: "drop_2", prompt: "Powerful, energetic big room house beat, driving kick and snare, 128 bpm, in C minor", volume: 1.0 }
+  - { section: "outro", prompt: "Simple four-on-the-floor kick with heavy reverb, fading out, 128 bpm, in C minor", volume: 0.5, fade_out: true }
+
+- name: "bass"
+  model: "facebook/musicgen-style"
+  use_style: true
+  sections:
+  - { section: "intro", prompt: "Deep, simple sub bass, single long notes, 128 bpm, in C minor", volume: 0.7 }
+  - { section: "drop_1", prompt: "Driving, rhythmic EDM sub bass, side-chained to the kick drum, energetic bassline, 128 bpm, in C minor", volume: 0.9, loop: true }
+  - { section: "breakdown", prompt: "Low, sustained bass pad, atmospheric and deep, 128 bpm, in C minor", volume: 0.6 }
+  - { section: "drop_2", prompt: "Aggressive, powerful EDM side-chained bassline, driving rhythm, 128 bpm, in C minor", volume: 0.9, loop: true }
+  - { section: "outro", prompt: "Sustained sub bass note, fading out with reverb, 128 bpm, in C minor", volume: 0.5, fade_out: true }
+
+- name: "lead_synth"
+  model: "facebook/musicgen-style"
+  use_style: true
+  sections:
+  - { section: "intro", prompt: "Atmospheric synth pad, mysterious, simple melody, 128 bpm, in C minor", volume: 0.6 }
+  - { section: "build_up_1", prompt: "Plucky synth arpeggio, rising in pitch, filter opening up, 128 bpm, in C minor", volume: 0.7, use_continuation: true }
+  - { section: "drop_1", prompt: "Euphoric, soaring trance synth lead melody, catchy and powerful, festival anthem, 128 bpm, in C minor", volume: 0.9, loop: true }
+  - { section: "breakdown", prompt: "Gentle piano melody, emotional, with lots of reverb and delay, 128 bpm, in C minor", volume: 0.8 }
+  - { section: "build_up_2", prompt: "Repeating synth stab with increasing speed and filter sweep, 128 bpm, in C minor", volume: 0.8, use_continuation: true }
+  - { section: "drop_2", prompt: "High-energy, epic synth lead melody, powerful chords, uplifting, 128 bpm, in C minor", volume: 0.9, loop: true }
+  - { section: "outro", prompt: "Simple synth pad chord, fading out slowly, reverb tail, 128 bpm, in C minor", volume: 0.5, fade_out: true }
+
+- name: "fx_and_risers"
+  model: "facebook/musicgen-style"
+  use_style: true
+  sections:
+  - { section: "breakdown", prompt: "Ethereal atmospheric synth pad, ambient wash of sound", volume: 0.5 }
+  - { section: "build_up_2", prompt: "White noise sweep rising in pitch and volume, building tension for a drop", volume: 0.7, use_continuation: true }
+  - { section: "drop_2", prompt: "Explosive impact sound with a long reverb tail, cymbal crash", volume: 0.6 }
+  - { section: "outro", prompt: "Fading white noise, ambient drone", volume: 0.3, fade_out: true }
+
+processing:
+  normalization_strategy: "loudness"
+  normalize_db: -12
+  prevent_clipping: true
+
+advanced:
+  generation_params:
+    temperature: 0.8
+    top_k: 250
+    top_p: 0.0
+    cfg_coef: 3.5
+  use_cache: true
+  cache_dir: "cache/ascension_anthem/"
+  style_reference:
+    path: "./assets/edm_style_reference_2.wav"
+    excerpt_length: 4.0 # must be between 1.5 and 4.5 seconds
