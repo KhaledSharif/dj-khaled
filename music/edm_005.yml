@@ -1,6 +1,6 @@
 song:
   name: "Ascension Anthem"
-  output_file: "output/ascension_anthem_004.wav"
+  output_file: "output/ascension_anthem_005.wav"
   sample_rate: 32000
   master_volume: 1.0
   bpm: 128
@@ -19,40 +19,40 @@ layers:
   model: "facebook/musicgen-small"
   sections:
   - { section: "intro", prompt: "Minimal four-on-the-floor kick drum at 128 bpm, distant hi-hats, in C minor", volume: 0.7 }
-  - { section: "build_up_1", prompt: "Driving four-on-the-floor kick with a clap, building snare roll, 128 bpm, in C minor", volume: 0.8, use_continuation: true }
-  - { section: "drop_1", prompt: "Hard-hitting EDM kick drum evolving from snare roll, powerful snare, crisp hi-hats, energetic house beat, 128 bpm, in C minor", volume: 1.0, use_continuation: true }
-  - { section: "breakdown", prompt: "Transitioning from energetic beat to filtered kick drum with heavy reverb, no snare, atmospheric percussion, 128 bpm, in C minor", volume: 0.6, use_continuation: true }
-  - { section: "build_up_2", prompt: "Intensifying kick with a fast snare roll, rising hi-hat pitch, 128 bpm, in C minor", volume: 0.9, use_continuation: true }
-  - { section: "drop_2", prompt: "Exploding from snare roll into powerful, energetic big room house beat, driving kick and snare, 128 bpm, in C minor", volume: 1.0, use_continuation: true }
-  - { section: "outro", prompt: "Winding down from energetic beat to simple four-on-the-floor kick with heavy reverb, fading out, 128 bpm, in C minor", volume: 0.5, fade_out: true, use_continuation: true }
+  - { section: "build_up_1", prompt: "Smoothly transitioning from minimal kick into driving four-on-the-floor kick with a clap, gradually building snare roll, 128 bpm, in C minor", volume: 0.8, use_continuation: true }
+  - { section: "drop_1", prompt: "Seamlessly exploding from snare roll buildup into hard-hitting EDM kick drum, powerful snare, crisp hi-hats, energetic house beat maintaining momentum, 128 bpm, in C minor", volume: 1.0, use_continuation: true }
+  - { section: "breakdown", prompt: "Smoothly transitioning from energetic beat, gradually filtering down to softer kick drum with heavy reverb, removing snare, atmospheric percussion emerging, 128 bpm, in C minor", volume: 0.6, use_continuation: true }
+  - { section: "build_up_2", prompt: "Rising from breakdown atmosphere, gradually intensifying kick with accelerating snare roll, rising hi-hat pitch building tension, 128 bpm, in C minor", volume: 0.9, use_continuation: true }
+  - { section: "drop_2", prompt: "Naturally exploding from snare roll buildup into powerful, energetic big room house beat, driving kick and snare maintaining energy, 128 bpm, in C minor", volume: 1.0, use_continuation: true }
+  - { section: "outro", prompt: "Gradually winding down from energetic beat, smoothly reducing to simple four-on-the-floor kick with heavy reverb, naturally fading out, 128 bpm, in C minor", volume: 0.5, fade_out: true, use_continuation: true }
 
 - name: "bass"
   model: "facebook/musicgen-small"
   sections:
   - { section: "intro", prompt: "Deep, simple sub bass, single long notes, 128 bpm, in C minor", volume: 0.7 }
-  - { section: "drop_1", prompt: "Building from simple bass into driving, rhythmic EDM sub bass, side-chained to the kick drum, energetic bassline, 128 bpm, in C minor", volume: 0.9, loop: true, use_continuation: true }
-  - { section: "breakdown", prompt: "Morphing from rhythmic bass to low, sustained bass pad, atmospheric and deep, 128 bpm, in C minor", volume: 0.6, use_continuation: true }
-  - { section: "drop_2", prompt: "Rising from atmospheric pad into aggressive, powerful EDM side-chained bassline, driving rhythm, 128 bpm, in C minor", volume: 0.9, loop: true, use_continuation: true }
-  - { section: "outro", prompt: "Resolving from driving bassline to sustained sub bass note, fading out with reverb, 128 bpm, in C minor", volume: 0.5, fade_out: true, use_continuation: true }
+  - { section: "drop_1", prompt: "Naturally evolving from simple bass notes into driving, rhythmic EDM sub bass, side-chained to the kick drum, energetic bassline maintaining groove, 128 bpm, in C minor", volume: 0.9, loop: true, use_continuation: true }
+  - { section: "breakdown", prompt: "Smoothly morphing from rhythmic bass, gradually transitioning to low, sustained bass pad, atmospheric and deep, 128 bpm, in C minor", volume: 0.6, use_continuation: true }
+  - { section: "drop_2", prompt: "Seamlessly rising from atmospheric pad, building into aggressive, powerful EDM side-chained bassline, driving rhythm, 128 bpm, in C minor", volume: 0.9, loop: true, use_continuation: true }
+  - { section: "outro", prompt: "Smoothly resolving from driving bassline, gradually simplifying to sustained sub bass note, fading out with reverb, 128 bpm, in C minor", volume: 0.5, fade_out: true, use_continuation: true }
 
 - name: "lead_synth"
   model: "facebook/musicgen-small"
   sections:
   - { section: "intro", prompt: "Atmospheric synth pad, mysterious, simple melody, 128 bpm, in C minor", volume: 0.6 }
-  - { section: "build_up_1", prompt: "Plucky synth arpeggio, rising in pitch, filter opening up, 128 bpm, in C minor", volume: 0.7, use_continuation: true }
-  - { section: "drop_1", prompt: "Exploding from arpeggio into euphoric, soaring trance synth lead melody, catchy and powerful, festival anthem, 128 bpm, in C minor", volume: 0.9, loop: true, use_continuation: true }
-  - { section: "breakdown", prompt: "Transitioning from synth lead to gentle piano melody, emotional, with lots of reverb and delay, 128 bpm, in C minor", volume: 0.8, use_continuation: true }
-  - { section: "build_up_2", prompt: "Repeating synth stab with increasing speed and filter sweep, 128 bpm, in C minor", volume: 0.8, use_continuation: true }
-  - { section: "drop_2", prompt: "Building from synth stabs into high-energy, epic synth lead melody, powerful chords, uplifting, 128 bpm, in C minor", volume: 0.9, loop: true, use_continuation: true }
-  - { section: "outro", prompt: "Resolving from epic melody to simple synth pad chord, fading out slowly, reverb tail, 128 bpm, in C minor", volume: 0.5, fade_out: true, use_continuation: true }
+  - { section: "build_up_1", prompt: "Evolving from atmospheric pad into plucky synth arpeggio, gradually rising in pitch, filter opening up, 128 bpm, in C minor", volume: 0.7, use_continuation: true }
+  - { section: "drop_1", prompt: "Naturally exploding from rising arpeggio into euphoric, soaring trance synth lead melody, catchy and powerful, festival anthem, 128 bpm, in C minor", volume: 0.9, loop: true, use_continuation: true }
+  - { section: "breakdown", prompt: "Smoothly transitioning from synth lead, morphing into gentle piano melody, emotional, with lots of reverb and delay, 128 bpm, in C minor", volume: 0.8, use_continuation: true }
+  - { section: "build_up_2", prompt: "Emerging from piano melody, building with repeating synth stab, increasing speed and filter sweep, 128 bpm, in C minor", volume: 0.8, use_continuation: true }
+  - { section: "drop_2", prompt: "Seamlessly building from synth stabs into high-energy, epic synth lead melody, powerful chords, uplifting continuation, 128 bpm, in C minor", volume: 0.9, loop: true, use_continuation: true }
+  - { section: "outro", prompt: "Gracefully resolving from epic melody, winding down to simple synth pad chord, fading out slowly, reverb tail, 128 bpm, in C minor", volume: 0.5, fade_out: true, use_continuation: true }
 
 - name: "fx_and_risers"
   model: "facebook/musicgen-small"
   sections:
   - { section: "breakdown", prompt: "Ethereal atmospheric synth pad, ambient wash of sound", volume: 0.5 }
-  - { section: "build_up_2", prompt: "White noise sweep rising in pitch and volume, building tension for a drop", volume: 0.7, use_continuation: true }
-  - { section: "drop_2", prompt: "Climaxing from rising sweep into explosive impact sound with a long reverb tail, cymbal crash", volume: 0.6, use_continuation: true }
-  - { section: "outro", prompt: "Dissolving from impact into fading white noise, ambient drone", volume: 0.3, fade_out: true, use_continuation: true }
+  - { section: "build_up_2", prompt: "Emerging from atmospheric wash, white noise sweep gradually rising in pitch and volume, building tension for the drop", volume: 0.7, use_continuation: true }
+  - { section: "drop_2", prompt: "Naturally climaxing from rising sweep into explosive impact sound with a long reverb tail, cymbal crash", volume: 0.6, use_continuation: true }
+  - { section: "outro", prompt: "Smoothly dissolving from impact, gradually fading into white noise, ambient drone", volume: 0.3, fade_out: true, use_continuation: true }
 
 processing:
   normalization_strategy: "loudness"
@@ -70,4 +70,4 @@ advanced:
   transitions:
     enable_auto_continuation: true  # Automatically use continuation for all non-first sections
     overlap_duration: 4.0  # Generate extra seconds for natural transitions
-    continuation_window: 10.0  # How many seconds of previous audio to use for conditioning
+    continuation_window: 6.0  # How many seconds of previous audio to use for conditioning

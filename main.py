@@ -348,23 +348,58 @@ class MusicProducer:
 
             section_audio *= volume
             
-            # Trim overlap from generated audio to get the actual section
-            if idx > 0 and enable_continuation and section_audio.shape[-1] > duration * self.sample_rate:
-                # Keep the overlap portion at the beginning (it's the natural transition)
-                # Trim from the end to match target duration
-                target_samples = int(duration * self.sample_rate)
-                section_audio = section_audio[..., :target_samples]
-                logger.info(f"Trimmed section to {target_samples/self.sample_rate:.1f}s after overlap generation")
-            
-            last_section_audio = section_audio.clone()
+            # Handle crossfading for smooth transitions
             start_sample = int(start_time * self.sample_rate)
             if start_sample >= total_samples:
                 continue
-
-            length = min(section_audio.shape[-1], total_samples - start_sample)
-            layer_audio[..., start_sample : start_sample + length] += section_audio[
-                ..., :length
-            ]
+            
+            if idx > 0 and enable_continuation and section_audio.shape[-1] > duration * self.sample_rate:
+                # Use the overlap for crossfading with previous section
+                overlap_samples = int(overlap_duration * self.sample_rate)
+                target_samples = int(duration * self.sample_rate)
+                
+                # Create crossfade at the section boundary
+                crossfade_duration_samples = min(overlap_samples, int(2.0 * self.sample_rate))  # 2 second crossfade
+                
+                if start_sample > 0 and crossfade_duration_samples > 0:
+                    # Get the overlapping portion from the new section
+                    overlap_audio = section_audio[..., :crossfade_duration_samples]
+                    
+                    # Apply crossfade to the existing audio at the transition point
+                    fade_out = torch.cos(torch.linspace(0, 1.57, crossfade_duration_samples, device=section_audio.device))
+                    fade_in = torch.cos(torch.linspace(1.57, 0, crossfade_duration_samples, device=section_audio.device))
+                    
+                    # Fade out the end of previous section in the mix
+                    fade_start = max(0, start_sample - crossfade_duration_samples)
+                    fade_end = min(start_sample, total_samples)
+                    fade_len = fade_end - fade_start
+                    
+                    if fade_len > 0:
+                        layer_audio[..., fade_start:fade_end] *= fade_out[:fade_len]
+                    
+                    # Add the faded-in new section
+                    layer_audio[..., fade_start:fade_end] += overlap_audio[..., :fade_len] * fade_in[:fade_len]
+                    
+                    # Add the rest of the section after the crossfade
+                    remaining_samples = min(target_samples - crossfade_duration_samples, total_samples - start_sample)
+                    if remaining_samples > 0:
+                        layer_audio[..., start_sample:start_sample + remaining_samples] = section_audio[
+                            ..., crossfade_duration_samples:crossfade_duration_samples + remaining_samples
+                        ]
+                    
+                    logger.info(f"Applied {crossfade_duration_samples/self.sample_rate:.1f}s crossfade for section '{section_name}'")
+                else:
+                    # No crossfade, just place the trimmed audio
+                    section_audio = section_audio[..., :target_samples]
+                    length = min(section_audio.shape[-1], total_samples - start_sample)
+                    layer_audio[..., start_sample : start_sample + length] = section_audio[..., :length]
+            else:
+                # First section or no continuation - place directly
+                length = min(section_audio.shape[-1], total_samples - start_sample)
+                layer_audio[..., start_sample : start_sample + length] = section_audio[..., :length]
+            
+            # Store for next iteration's continuation
+            last_section_audio = section_audio.clone()
 
         return layer_audio
 
