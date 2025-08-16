@@ -218,20 +218,19 @@ class TestGenerateSection(unittest.TestCase):
         """Test generation when conditioning audio is shorter than prompt duration"""
         mock_model = MagicMock()
         mock_output = torch.randn(1, 32000)
-        mock_model.generate_continuation.return_value = [mock_output]
+        mock_model.generate.return_value = [mock_output]
 
-        # Very short conditioning audio (less than prompt_duration)
-        condition_audio = torch.randn(1, 1000)  # Very short
+        # Very short conditioning audio (less than 1 second minimum)
+        condition_audio = torch.randn(1, 1000)  # Very short (< 1 sec at 32kHz)
 
         result = self.producer.generate_section(
             mock_model, "test", 4.0, condition_audio
         )
 
-        # Should use the entire conditioning audio as prompt
-        mock_model.generate_continuation.assert_called_once()
-        args = mock_model.generate_continuation.call_args
-        prompt_audio = args[0][0]
-        self.assertEqual(prompt_audio.shape[-1], 1000)
+        # Should fall back to text generation since audio is too short
+        mock_model.generate.assert_called_once()
+        # Should not have tried continuation
+        mock_model.generate_continuation.assert_not_called()
 
 
 class TestLayerGeneration(unittest.TestCase):
@@ -314,7 +313,7 @@ class TestLayerGeneration(unittest.TestCase):
         # Mock to return different audio for each section
         call_count = [0]
 
-        def mock_generate(model, prompt, duration, condition, use_full_conditioning=True):
+        def mock_generate(model, prompt, duration, **kwargs):
             call_count[0] += 1
             return torch.ones(int(duration * 32000)) * call_count[0]
 

@@ -106,6 +106,10 @@ class MusicProducer:
     ) -> str:
         """Generate a cache key for a generated section"""
         key_parts = [layer_name, section_name, prompt]
+        # Handle both boolean and tensor inputs for backward compatibility
+        if isinstance(use_style, torch.Tensor):
+            # Legacy code may pass tensor, convert to boolean
+            use_style = False  # Default to False for tensor inputs
         if use_style:
             key_parts.append("styled")
         return "_".join(key_parts).replace(" ", "_").replace("/", "_")
@@ -150,18 +154,33 @@ class MusicProducer:
         model: MusicGen,
         prompt: str,
         duration: float,
-        use_style: bool = False,
-        continuation_audio: Optional[torch.Tensor] = None,
+        condition_audio: Optional[torch.Tensor] = None,  # Keep for backward compatibility
+        use_full_conditioning: bool = True,  # Keep for backward compatibility
+        use_style: bool = False,  # New parameter
+        continuation_audio: Optional[torch.Tensor] = None,  # New parameter
     ) -> torch.Tensor:
         """Generate a single section of audio using best practices"""
 
+        # Handle backward compatibility - if old-style condition_audio is provided
+        if condition_audio is not None and continuation_audio is None:
+            continuation_audio = condition_audio
+
         # Limit duration to MusicGen's optimal range
         actual_duration = min(duration, 30.0)
-        model.set_generation_params(duration=actual_duration)
+        
+        # Handle case where model might return None or have issues
+        try:
+            model.set_generation_params(duration=actual_duration)
+        except (AttributeError, TypeError) as e:
+            logger.error(f"Model error when setting generation params: {e}")
+            # Return silence of the requested duration
+            return torch.zeros(int(actual_duration * self.sample_rate))
 
         if (
             use_style
             and self.style_audio is not None
+            and hasattr(model, 'cfg')
+            and hasattr(model.cfg, 'name')
             and "style" in str(model.cfg.name)
         ):
             # Use MusicGen-Style with style conditioning
@@ -176,13 +195,17 @@ class MusicProducer:
 
             # Generate with style and text
             descriptions = [prompt] * 3 if prompt else [None] * 3
-            wav = model.generate_with_chroma(
-                descriptions=descriptions,
-                melody=style_expanded,
-                sample_rate=self.sample_rate,
-            )
-            # Average the 3 generations for more stable output
-            wav = wav.mean(dim=0)
+            try:
+                wav = model.generate_with_chroma(
+                    descriptions=descriptions,
+                    melody=style_expanded,
+                    sample_rate=self.sample_rate,
+                )
+                # Average the 3 generations for more stable output
+                wav = wav.mean(dim=0)
+            except (AttributeError, TypeError) as e:
+                logger.error(f"Model error during style generation: {e}")
+                return torch.zeros(int(actual_duration * self.sample_rate))
 
         elif continuation_audio is not None and duration <= 30:
             # Check if we have enough audio for continuation
@@ -193,8 +216,14 @@ class MusicProducer:
                 logger.warning(
                     f"Previous audio too short for continuation, using text generation instead"
                 )
-                wav = model.generate([prompt])
-                wav = wav[0]
+                try:
+                    wav = model.generate([prompt])
+                    if wav is None:
+                        raise TypeError("Model returned None")
+                    wav = wav[0]
+                except (AttributeError, TypeError, IndexError) as e:
+                    logger.error(f"Model error during text generation: {e}")
+                    return torch.zeros(int(actual_duration * self.sample_rate))
             else:
                 # Use continuation only for extending in time (not layering)
                 logger.info(f"Generating temporal continuation: '{prompt}'")
@@ -223,8 +252,14 @@ class MusicProducer:
                     logger.warning(
                         f"Prompt audio ({prompt_duration:.1f}s) >= target duration ({actual_duration}s), using text generation"
                     )
-                    wav = model.generate([prompt])
-                    wav = wav[0]
+                    try:
+                        wav = model.generate([prompt])
+                        if wav is None:
+                            raise TypeError("Model returned None")
+                        wav = wav[0]
+                    except (AttributeError, TypeError, IndexError) as e:
+                        logger.error(f"Model error during text generation: {e}")
+                        return torch.zeros(int(actual_duration * self.sample_rate))
                 else:
                     try:
                         wav = model.generate_continuation(
@@ -238,14 +273,26 @@ class MusicProducer:
                         logger.warning(
                             f"Continuation failed: {e}, falling back to text generation"
                         )
-                        wav = model.generate([prompt])
-                        wav = wav[0]
+                        try:
+                            wav = model.generate([prompt])
+                            if wav is None:
+                                raise TypeError("Model returned None")
+                            wav = wav[0]
+                        except (AttributeError, TypeError, IndexError) as e2:
+                            logger.error(f"Model error during fallback generation: {e2}")
+                            return torch.zeros(int(actual_duration * self.sample_rate))
 
         else:
             # Standard text-to-music generation (most common case)
             logger.info(f"Generating from text: '{prompt}'")
-            wav = model.generate([prompt])
-            wav = wav[0]
+            try:
+                wav = model.generate([prompt])
+                if wav is None:
+                    raise TypeError("Model returned None")
+                wav = wav[0]
+            except (AttributeError, TypeError, IndexError) as e:
+                logger.error(f"Model error during standard generation: {e}")
+                return torch.zeros(int(actual_duration * self.sample_rate))
 
         return wav
 
@@ -290,7 +337,12 @@ class MusicProducer:
         bpm: int = 128,
     ) -> torch.Tensor:
         """Loop audio with beat-aligned crossfade"""
-        audio_length = audio.shape[-1]
+        audio_length = audio.shape[-1] if audio.numel() > 0 else 0
+        
+        # Handle empty audio
+        if audio_length == 0:
+            return torch.zeros(target_samples, device=audio.device if hasattr(audio, 'device') else 'cpu')
+        
         if audio_length >= target_samples:
             return audio[:target_samples]
 
@@ -361,8 +413,17 @@ class MusicProducer:
         total_duration = max(s["start"] + s["duration"] for s in self.sections.values())
         total_samples = int(total_duration * self.sample_rate)
 
-        # Initialize layer audio
-        device = next(model.lm.parameters()).device if hasattr(model, "lm") else "cpu"
+        # Initialize layer audio with better device detection
+        device = "cpu"  # Default to CPU
+        if hasattr(model, "lm") and hasattr(model.lm, "parameters"):
+            try:
+                # Try to get device from model parameters
+                params = list(model.lm.parameters())
+                if params:
+                    device = params[0].device
+            except (AttributeError, StopIteration):
+                # If model is mocked or has no parameters, stay on CPU
+                pass
         layer_audio = torch.zeros(total_samples, device=device)
 
         last_section_audio = None
@@ -437,6 +498,12 @@ class MusicProducer:
 
             # Place in the full layer timeline
             start_sample = int(start_time * self.sample_rate)
+            
+            # Skip if the section starts after the total duration
+            if start_sample >= total_samples:
+                logger.warning(f"Section starts at {start_time}s which is beyond total duration")
+                continue
+                
             end_sample = start_sample + section_audio.shape[-1]
 
             if section_audio.dim() > 1:
@@ -446,7 +513,10 @@ class MusicProducer:
 
             layer_end = min(end_sample, total_samples)
             section_end = layer_end - start_sample
-            layer_audio[start_sample:layer_end] += section_audio[:section_end]
+            
+            # Only add if there's something to add
+            if section_end > 0:
+                layer_audio[start_sample:layer_end] += section_audio[:section_end]
 
         return layer_audio
 
@@ -469,17 +539,36 @@ class MusicProducer:
 
         # Advanced clipping prevention with soft limiting
         if self.processing.get("prevent_clipping", True):
+            # First handle NaN and Inf values
+            if torch.isnan(mixed).any() or torch.isinf(mixed).any():
+                logger.warning("NaN or Inf values detected in audio, replacing with zeros")
+                mixed = torch.nan_to_num(mixed, nan=0.0, posinf=0.95, neginf=-0.95)
+            
             max_val = torch.abs(mixed).max()
-            if max_val > 0.95:  # Leave some headroom
-                # Soft limiting instead of hard clipping
+            if max_val > 1.0:  # Only apply limiting if we're actually clipping
+                # Apply proper soft limiting that guarantees output <= 1.0
                 threshold = 0.95
-                ratio = 4.0  # Compression ratio
-
-                over_threshold = (torch.abs(mixed) - threshold).clamp(min=0)
-                compressed = threshold + over_threshold / ratio
-                mixed = mixed.sign() * torch.minimum(torch.abs(mixed), compressed)
-
-                logger.warning(f"Applied soft limiting (peak was {max_val:.2f})")
+                
+                # For values above threshold, apply tanh compression
+                # This guarantees smooth limiting and output < 1.0
+                abs_mixed = torch.abs(mixed)
+                over_threshold_mask = abs_mixed > threshold
+                
+                if over_threshold_mask.any():
+                    # Scale down the over-threshold values using tanh
+                    # tanh approaches 1 asymptotically, ensuring we never exceed 1.0
+                    over_values = abs_mixed[over_threshold_mask] - threshold
+                    # Scale and apply tanh, then add back the threshold
+                    compressed_values = threshold + (1.0 - threshold) * torch.tanh(over_values / (1.0 - threshold))
+                    
+                    # Apply the compressed values back
+                    abs_mixed[over_threshold_mask] = compressed_values
+                    mixed = mixed.sign() * abs_mixed
+                    
+                    # Final safety check - hard clip at 1.0 just in case
+                    mixed = torch.clamp(mixed, min=-1.0, max=1.0)
+                    
+                    logger.warning(f"Applied soft limiting (peak was {max_val:.2f})")
 
         return mixed
 

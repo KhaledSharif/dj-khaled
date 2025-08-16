@@ -204,14 +204,14 @@ class TestCacheOperations(unittest.TestCase):
         self.assertEqual(key, expected)
 
     def test_get_cache_key_with_conditioning(self):
-        """Test cache key generation with conditioning audio"""
-        audio = torch.randn(1, 1000)
-        key = self.producer.get_cache_key("layer1", "section1", "test prompt", audio)
-
-        # Check that the key contains the layer, section, prompt and hash
-        self.assertTrue(key.startswith("layer1_section1_test_prompt_"))
-        parts = key.split("_")
-        self.assertEqual(len(parts), 5)  # layer1, section1, test, prompt, hash
+        """Test cache key generation with style flag"""
+        # Test with style=False (default)
+        key = self.producer.get_cache_key("layer1", "section1", "test prompt", False)
+        self.assertEqual(key, "layer1_section1_test_prompt")
+        
+        # Test with style=True
+        key_styled = self.producer.get_cache_key("layer1", "section1", "test prompt", True)
+        self.assertEqual(key_styled, "layer1_section1_test_prompt_styled")
 
     def test_save_and_load_cache(self):
         """Test saving and loading from cache"""
@@ -420,7 +420,7 @@ class TestLayerGeneration(unittest.TestCase):
         mock_musicgen_class.get_pretrained.return_value = mock_model
 
         # Mock generate_section to return appropriate audio
-        def mock_generate(model, prompt, duration, condition, use_full_conditioning=True):
+        def mock_generate(model, prompt, duration, **kwargs):
             return torch.randn(int(duration * 32000))
 
         self.producer.generate_section = MagicMock(side_effect=mock_generate)
@@ -597,22 +597,22 @@ class TestProduceIntegration(unittest.TestCase):
         original_generate_layer = producer.generate_layer
         generate_layer_calls = []
 
-        def track_generate_layer(layer_config, condition_mix=None):
+        def track_generate_layer(layer_config, previous_section_audio=None):
             generate_layer_calls.append(
                 {
                     "layer": layer_config["name"],
-                    "has_conditioning": condition_mix is not None,
+                    "has_previous_audio": previous_section_audio is not None,
                 }
             )
-            return original_generate_layer(layer_config, condition_mix)
+            return original_generate_layer(layer_config, previous_section_audio)
 
         producer.generate_layer = track_generate_layer
         producer.produce()
 
-        # Verify conditioning chain
+        # Verify layers were generated (no conditioning between layers anymore)
         self.assertEqual(len(generate_layer_calls), 2)
-        self.assertFalse(generate_layer_calls[0]["has_conditioning"])  # drums
-        self.assertTrue(generate_layer_calls[1]["has_conditioning"])  # bass
+        self.assertFalse(generate_layer_calls[0]["has_previous_audio"])  # drums
+        self.assertFalse(generate_layer_calls[1]["has_previous_audio"])  # bass (no longer conditioned)
 
     @patch("main.audio_write")
     @patch("main.MusicGen")
@@ -628,7 +628,7 @@ class TestProduceIntegration(unittest.TestCase):
         producer = MusicProducer(self.config_path)
 
         # Mock generate_section to return actual tensor
-        def mock_generate_section(model, prompt, duration, condition, use_full_conditioning=True):
+        def mock_generate_section(model, prompt, duration, **kwargs):
             return torch.ones(int(duration * 32000)) * 2.0
 
         producer.generate_section = mock_generate_section
