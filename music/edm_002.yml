@@ -4,101 +4,101 @@ song:
   output_file: "output/smooth_flow.wav"
   sample_rate: 32000
   master_volume: 0.9
-  
+
 # Simplified structure with fewer, longer sections for better coherence
 sections:
   intro:
     start: 0
-    duration: 16  # 8 bars at 128 BPM
-    
+    duration: 16 # 8 bars at 128 BPM
+
   main:
     start: 16
-    duration: 64  # 32 bars - long stable section
-    
+    duration: 64 # 32 bars - long stable section
+
   outro:
     start: 80
-    duration: 16  # 8 bars
+    duration: 16 # 8 bars
 
 layers:
-  # Foundation drum layer - consistent throughout
-  - name: "drums"
-    model: "facebook/musicgen-small"
-    sections:
-      - section: "intro"
-        prompt: "Simple steady four-on-the-floor kick drum at 128 bpm, soft hi-hats"
-        volume: 0.6
-      - section: "main"
-        prompt: "Steady four-on-the-floor kick drum at 128 bpm, snare on 2 and 4, consistent hi-hats"
-        volume: 0.8
-      - section: "outro"
-        prompt: "Simple four-on-the-floor kick drum at 128 bpm, soft hi-hats, gentle"
-        volume: 0.5
-        fade_out: true
+# Foundation drum layer - consistent throughout
+- name: "drums"
+  model: "facebook/musicgen-small"
+  sections:
+  - section: "intro"
+    prompt: "Simple steady four-on-the-floor kick drum at 128 bpm, soft hi-hats"
+    volume: 0.6
+  - section: "main"
+    prompt: "Steady four-on-the-floor kick drum at 128 bpm, snare on 2 and 4, consistent hi-hats"
+    volume: 0.8
+  - section: "outro"
+    prompt: "Simple four-on-the-floor kick drum at 128 bpm, soft hi-hats, gentle"
+    volume: 0.5
+    fade_out: true
 
-  # Bass layer - always present for consistency
-  - name: "bass"
-    model: "facebook/musicgen-small"
-    condition_on: ["drums"]
-    sections:
-      - section: "intro"
-        prompt: "Warm deep bass, simple pattern following kick drum"
-        volume: 0.5
-        loop: true  # Use looping with crossfade for consistency
-      - section: "main"
-        prompt: "Warm consistent bass line, steady rhythm, following kick pattern"
-        volume: 0.7
-        loop: true
-      - section: "outro"
-        prompt: "Warm deep bass, simple pattern, gentle"
-        volume: 0.4
-        fade_out: true
+# Bass layer - always present for consistency
+- name: "bass"
+  model: "facebook/musicgen-small"
+  condition_on: [ "drums" ]
+  sections:
+  - section: "intro"
+    prompt: "Warm deep bass, simple pattern following kick drum"
+    volume: 0.5
+    loop: true # Use looping with crossfade for consistency
+  - section: "main"
+    prompt: "Warm consistent bass line, steady rhythm, following kick pattern"
+    volume: 0.7
+    loop: true
+  - section: "outro"
+    prompt: "Warm deep bass, simple pattern, gentle"
+    volume: 0.4
+    fade_out: true
 
-  # Simplified melody layer
-  - name: "melody"
-    model: "facebook/musicgen-melody"
-    condition_on: ["drums", "bass"]
-    sections:
-      - section: "intro"
-        prompt: "Soft warm synth pad, simple chord progression, ambient"
-        volume: 0.4
-      - section: "main"
-        prompt: "Warm melodic synth, simple repeating melody, pleasant and consistent"
-        volume: 0.6
-        loop: true  # Loop for consistency
-      - section: "outro"
-        prompt: "Soft warm synth pad, gentle chords, fading"
-        volume: 0.3
-        fade_out: true
+# Simplified melody layer
+- name: "melody"
+  model: "facebook/musicgen-melody"
+  condition_on: [ "drums", "bass" ]
+  sections:
+  - section: "intro"
+    prompt: "Soft warm synth pad, simple chord progression, ambient"
+    volume: 0.4
+  - section: "main"
+    prompt: "Warm melodic synth, simple repeating melody, pleasant and consistent"
+    volume: 0.6
+    loop: true # Loop for consistency
+  - section: "outro"
+    prompt: "Soft warm synth pad, gentle chords, fading"
+    volume: 0.3
+    fade_out: true
 
-  # Subtle atmosphere layer (reduced from fx_and_risers)
-  - name: "atmosphere"
-    model: "facebook/musicgen-small"
-    condition_on: ["drums", "bass"]
-    sections:
-      - section: "intro"
-        prompt: "Soft ambient pad, warm texture"
-        volume: 0.3
-      - section: "main"
-        prompt: "Consistent ambient pad, warm atmospheric texture"
-        volume: 0.4
-      - section: "outro"
-        prompt: "Soft fading ambient pad"
-        volume: 0.2
-        fade_out: true
+# Subtle atmosphere layer (reduced from fx_and_risers)
+- name: "atmosphere"
+  model: "facebook/musicgen-small"
+  condition_on: [ "drums", "bass" ]
+  sections:
+  - section: "intro"
+    prompt: "Soft ambient pad, warm texture"
+    volume: 0.3
+  - section: "main"
+    prompt: "Consistent ambient pad, warm atmospheric texture"
+    volume: 0.4
+  - section: "outro"
+    prompt: "Soft fading ambient pad"
+    volume: 0.2
+    fade_out: true
 
 processing:
   # Use the fixed normalization strategy
   normalization_strategy: "loudness"
   normalize: true
-  normalize_db: -14  # Standard loudness for streaming
+  normalize_db: -14 # Standard loudness for streaming
   prevent_clipping: true
-  
+
 advanced:
   generation_params:
-    temperature: 0.9  # Slightly lower for more consistency
+    temperature: 0.9 # Slightly lower for more consistency
     top_k: 250
     top_p: 0.0
-    cfg_coef: 3.0  # Standard adherence, not too strict
+    cfg_coef: 3.0 # Standard adherence, not too strict
   use_cache: true
   cache_dir: "cache/smooth_flow/"
   # Use the bug fix for better conditioning

@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-"""Test runner for all tests in the tests directory"""
-
 import sys
 import unittest
 import os

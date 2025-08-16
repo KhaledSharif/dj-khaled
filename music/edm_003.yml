@@ -1,0 +1,204 @@
+# Simplified EDM Track - Optimized for musicgen-small
+# Focused on consistency and smooth transitions without continuation
+song:
+  name: "Neural Pulse Simple"
+  output_file: "output/neural_pulse_simple.wav"
+  sample_rate: 32000
+  master_volume: 0.9
+  bpm: 128
+
+# Shorter, simpler structure for better results with small model
+sections:
+  intro:
+    start: 0
+    duration: 15 # ~8 bars
+
+  build:
+    start: 15
+    duration: 15 # ~8 bars
+
+  drop_1:
+    start: 30
+    duration: 15 # ~8 bars
+
+  drop_2:
+    start: 45
+    duration: 15 # ~8 bars
+
+  break:
+    start: 60
+    duration: 15 # ~8 bars
+
+  drop_3:
+    start: 75
+    duration: 15 # ~8 bars
+
+  outro:
+    start: 90
+    duration: 10 # ~5 bars
+
+layers:
+# Drums - The foundation
+- name: "drums"
+  model: "facebook/musicgen-small"
+  volume: 1.0
+  sections:
+  - section: "intro"
+    prompt: "Simple techno kick drum pattern at 128 bpm, four on the floor, minimal hi-hats, clean and punchy"
+    volume: 0.6
+    fade_in: true
+    fade_duration: 2.0
+
+  - section: "build"
+    prompt: "Building techno drums at 128 bpm, kick drum, hi-hats getting busier, snare roll building tension"
+    volume: 0.8
+
+  - section: "drop_1"
+    prompt: "Powerful techno drums at 128 bpm, punchy kick, clap on 2 and 4, open hi-hats, driving rhythm"
+    volume: 1.0
+
+  - section: "drop_2"
+    prompt: "Energetic techno drums at 128 bpm, four on floor kick, snare, hi-hat patterns, percussion fills"
+    volume: 1.0
+
+  - section: "break"
+    prompt: "Minimal atmospheric drums at 128 bpm, filtered kick, no snare, ambient percussion"
+    volume: 0.5
+
+  - section: "drop_3"
+    prompt: "Peak energy techno drums at 128 bpm, powerful kick and snare, crash cymbals, full percussion"
+    volume: 1.0
+
+  - section: "outro"
+    prompt: "Fading techno drums at 128 bpm, simple kick pattern, minimal hi-hats"
+    volume: 0.6
+    fade_out: true
+    fade_duration: 3.0
+
+# Bass - Keep it simple and effective
+- name: "bass"
+  model: "facebook/musicgen-small"
+  volume: 0.85
+  sections:
+  - section: "intro"
+    prompt: "Deep sub bass at 128 bpm, simple single notes, warm and round"
+    volume: 0.6
+    fade_in: true
+
+  - section: "build"
+    prompt: "Rising techno bassline at 128 bpm, filter opening, building energy"
+    volume: 0.8
+
+  - section: "drop_1"
+    prompt: "Powerful techno bassline at 128 bpm, sidechained to kick, driving pattern"
+    volume: 1.0
+    loop: true
+    crossfade_duration: 0.25
+
+  - section: "drop_2"
+    prompt: "Groovy techno bass at 128 bpm, rhythmic pattern, deep and punchy"
+    volume: 1.0
+    loop: true
+    crossfade_duration: 0.25
+
+  - section: "break"
+    prompt: "Ambient bass pad, deep and atmospheric, slow movement"
+    volume: 0.7
+
+  - section: "drop_3"
+    prompt: "Massive techno bass at 128 bpm, aggressive and powerful, driving groove"
+    volume: 1.0
+    loop: true
+    crossfade_duration: 0.25
+
+  - section: "outro"
+    prompt: "Simple fading bass, warm and deep, gentle"
+    volume: 0.5
+    fade_out: true
+
+# Lead - Using musicgen-melody for better melodic content
+- name: "lead"
+  model: "facebook/musicgen-melody"
+  volume: 0.8
+  sections:
+  - section: "intro"
+    prompt: "Ethereal synth pad, mysterious atmosphere, C minor scale"
+    volume: 0.5
+    fade_in: true
+
+  - section: "build"
+    prompt: "Rising synth arpeggio at 128 bpm, building tension, C minor, filter automation"
+    volume: 0.7
+
+  - section: "drop_1"
+    prompt: "Euphoric trance lead melody, C minor, catchy and uplifting, festival anthem"
+    volume: 0.9
+    loop: true
+    crossfade_duration: 0.5
+
+  - section: "drop_2"
+    prompt: "Epic synth lead, C minor, powerful melody, hands in the air moment"
+    volume: 0.9
+    loop: true
+    crossfade_duration: 0.5
+
+  - section: "break"
+    prompt: "Beautiful piano melody, C minor, emotional and touching, reverb"
+    volume: 0.8
+
+  - section: "drop_3"
+    prompt: "Massive festival lead, C minor, euphoric and powerful, peak energy"
+    volume: 0.95
+    loop: true
+    crossfade_duration: 0.5
+
+  - section: "outro"
+    prompt: "Gentle fading synth pad, C minor, peaceful resolution"
+    volume: 0.4
+    fade_out: true
+
+# Simple atmosphere layer
+- name: "atmosphere"
+  model: "facebook/musicgen-small"
+  volume: 0.5
+  sections:
+  - section: "intro"
+    prompt: "Deep space ambience, mysterious textures"
+    volume: 0.6
+
+  - section: "build"
+    prompt: "Rising white noise sweep, building tension"
+    volume: 0.6
+
+  - section: "drop_1"
+    prompt: "Subtle atmospheric pad, wide stereo"
+    volume: 0.3
+
+  - section: "break"
+    prompt: "Lush ambient atmosphere, ethereal and spacious"
+    volume: 0.7
+
+  - section: "drop_3"
+    prompt: "Festival atmosphere, energy and excitement"
+    volume: 0.4
+
+  - section: "outro"
+    prompt: "Fading ambient drone, peaceful"
+    volume: 0.5
+    fade_out: true
+
+processing:
+  normalization_strategy: "loudness"
+  normalize: true
+  normalize_db: -10 # Good loudness for EDM
+  prevent_clipping: true
+
+advanced:
+  generation_params:
+    temperature: 0.85 # Lower for consistency
+    top_k: 250
+    top_p: 0.0
+    cfg_coef: 3.5 # Good prompt adherence
+    use_sampling: true
+  use_cache: true
+  cache_dir: "cache/neural_pulse_simple/"

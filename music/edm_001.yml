@@ -4,29 +4,29 @@ song:
   output_file: "output/ascension_anthem.wav"
   sample_rate: 32000
   master_volume: 1.0
-  
+
 # Define a structure typical for an EDM track (128 BPM = 2 seconds per beat)
 sections:
   intro:
     start: 0
-    duration: 15  # 8 bars
-    
+    duration: 15 # 8 bars
+
   build_up_1:
     start: 15
-    duration: 15  # 8 bars
-    
+    duration: 15 # 8 bars
+
   drop_1:
     start: 30
-    duration: 30  # 16 bars
-    
+    duration: 30 # 16 bars
+
   breakdown:
     start: 60
-    duration: 30  # 16 bars
-    
+    duration: 30 # 16 bars
+
   build_up_2:
     start: 90
     duration: 15 # 8 bars
-    
+
   drop_2:
     start: 105
     duration: 30 # 16 bars
@@ -36,112 +36,112 @@ sections:
     duration: 15 # 8 bars
 
 layers:
-  - name: "drums"
-    model: "facebook/musicgen-small"
-    sections:
-      - section: "intro"
-        prompt: "Minimal four-on-the-floor kick drum at 128 bpm, distant hi-hats"
-        volume: 0.7
-      - section: "build_up_1"
-        prompt: "Driving four-on-the-floor kick with a clap on every other beat, fast-paced 16th note hi-hats, building snare roll, 128 bpm"
-        volume: 0.8
-      - section: "drop_1"
-        prompt: "Hard-hitting EDM kick drum, powerful snare, crisp hi-hats, crash cymbals, energetic four-on-the-floor house beat, 128 bpm"
-        volume: 1.0
-      - section: "breakdown"
-        prompt: "Filtered kick drum with heavy reverb, no snare, atmospheric percussion, 128 bpm"
-        volume: 0.6
-      - section: "build_up_2"
-        prompt: "Intensifying four-on-the-floor kick with a fast snare roll, rising hi-hat pitch, 128 bpm"
-        volume: 0.9
-      - section: "drop_2"
-        prompt: "Powerful, energetic big room house beat, driving kick and snare, crash cymbals, 128 bpm"
-        volume: 1.0
-      - section: "outro"
-        prompt: "Simple four-on-the-floor kick with heavy reverb, fading out, 128 bpm"
-        volume: 0.5
-        fade_out: true
+- name: "drums"
+  model: "facebook/musicgen-small"
+  sections:
+  - section: "intro"
+    prompt: "Minimal four-on-the-floor kick drum at 128 bpm, distant hi-hats"
+    volume: 0.7
+  - section: "build_up_1"
+    prompt: "Driving four-on-the-floor kick with a clap on every other beat, fast-paced 16th note hi-hats, building snare roll, 128 bpm"
+    volume: 0.8
+  - section: "drop_1"
+    prompt: "Hard-hitting EDM kick drum, powerful snare, crisp hi-hats, crash cymbals, energetic four-on-the-floor house beat, 128 bpm"
+    volume: 1.0
+  - section: "breakdown"
+    prompt: "Filtered kick drum with heavy reverb, no snare, atmospheric percussion, 128 bpm"
+    volume: 0.6
+  - section: "build_up_2"
+    prompt: "Intensifying four-on-the-floor kick with a fast snare roll, rising hi-hat pitch, 128 bpm"
+    volume: 0.9
+  - section: "drop_2"
+    prompt: "Powerful, energetic big room house beat, driving kick and snare, crash cymbals, 128 bpm"
+    volume: 1.0
+  - section: "outro"
+    prompt: "Simple four-on-the-floor kick with heavy reverb, fading out, 128 bpm"
+    volume: 0.5
+    fade_out: true
 
-  - name: "bass"
-    model: "facebook/musicgen-small"
-    condition_on: ["drums"]
-    sections:
-      - section: "intro"
-        prompt: "Deep, simple sub bass, single long notes"
-        volume: 0.7
-      - section: "drop_1"
-        prompt: "Driving, rhythmic EDM sub bass, side-chained to the kick drum, energetic bassline"
-        volume: 0.9
-      - section: "breakdown"
-        prompt: "Low, sustained bass pad, atmospheric and deep"
-        volume: 0.6
-      - section: "drop_2"
-        prompt: "Aggressive, powerful EDM side-chained bassline, driving rhythm"
-        volume: 0.9
-      - section: "outro"
-        prompt: "Sustained sub bass note, fading out with reverb"
-        volume: 0.5
-        fade_out: true
+- name: "bass"
+  model: "facebook/musicgen-small"
+  condition_on: [ "drums" ]
+  sections:
+  - section: "intro"
+    prompt: "Deep, simple sub bass, single long notes"
+    volume: 0.7
+  - section: "drop_1"
+    prompt: "Driving, rhythmic EDM sub bass, side-chained to the kick drum, energetic bassline"
+    volume: 0.9
+  - section: "breakdown"
+    prompt: "Low, sustained bass pad, atmospheric and deep"
+    volume: 0.6
+  - section: "drop_2"
+    prompt: "Aggressive, powerful EDM side-chained bassline, driving rhythm"
+    volume: 0.9
+  - section: "outro"
+    prompt: "Sustained sub bass note, fading out with reverb"
+    volume: 0.5
+    fade_out: true
 
-  - name: "lead_synth"
-    model: "facebook/musicgen-melody"
-    condition_on: ["drums", "bass"]
-    sections:
-      - section: "intro"
-        prompt: "Atmospheric synth pad, mysterious, simple melody"
-        volume: 0.6
-      - section: "build_up_1"
-        prompt: "Plucky synth arpeggio, rising in pitch, filter opening up, creating tension"
-        volume: 0.7
-      - section: "drop_1"
-        prompt: "Euphoric, soaring trance synth lead melody, catchy and powerful, festival anthem, major key"
-        volume: 0.9
-      - section: "breakdown"
-        prompt: "Gentle piano melody, emotional, with lots of reverb and delay"
-        volume: 0.8
-      - section: "build_up_2"
-        prompt: "Repeating synth stab with increasing speed and filter sweep"
-        volume: 0.8
-      - section: "drop_2"
-        prompt: "High-energy, epic synth lead melody, powerful chords, uplifting and euphoric"
-        volume: 0.9
-      - section: "outro"
-        prompt: "Simple synth pad chord, fading out slowly, reverb tail"
-        volume: 0.5
-        fade_out: true
+- name: "lead_synth"
+  model: "facebook/musicgen-melody"
+  condition_on: [ "drums", "bass" ]
+  sections:
+  - section: "intro"
+    prompt: "Atmospheric synth pad, mysterious, simple melody"
+    volume: 0.6
+  - section: "build_up_1"
+    prompt: "Plucky synth arpeggio, rising in pitch, filter opening up, creating tension"
+    volume: 0.7
+  - section: "drop_1"
+    prompt: "Euphoric, soaring trance synth lead melody, catchy and powerful, festival anthem, major key"
+    volume: 0.9
+  - section: "breakdown"
+    prompt: "Gentle piano melody, emotional, with lots of reverb and delay"
+    volume: 0.8
+  - section: "build_up_2"
+    prompt: "Repeating synth stab with increasing speed and filter sweep"
+    volume: 0.8
+  - section: "drop_2"
+    prompt: "High-energy, epic synth lead melody, powerful chords, uplifting and euphoric"
+    volume: 0.9
+  - section: "outro"
+    prompt: "Simple synth pad chord, fading out slowly, reverb tail"
+    volume: 0.5
+    fade_out: true
 
-  - name: "fx_and_risers"
-    model: "facebook/musicgen-small"
-    condition_on: ["drums"]
-    sections:
-      - section: "intro"
-        prompt: "Ambient texture, distant reverb washes"
-        volume: 0.4
-      - section: "build_up_1"
-        prompt: "White noise sweep rising in pitch and volume, impact sound effect"
-        volume: 0.6
-      - section: "drop_1"
-        prompt: "Explosive impact sound with a long reverb tail, background synth pads"
-        volume: 0.5
-      - section: "breakdown"
-        prompt: "Ethereal synth pad, atmospheric wash of sound"
-        volume: 0.7
-      - section: "build_up_2"
-        prompt: "Loud white noise riser, increasing tension, preparing for a drop"
-        volume: 0.7
-      - section: "drop_2"
-        prompt: "Huge cymbal crash and impact sound, atmospheric pads"
-        volume: 0.5
-      - section: "outro"
-        prompt: "Fading white noise, ambient drone"
-        volume: 0.3
-        fade_out: true
+- name: "fx_and_risers"
+  model: "facebook/musicgen-small"
+  condition_on: [ "drums" ]
+  sections:
+  - section: "intro"
+    prompt: "Ambient texture, distant reverb washes"
+    volume: 0.4
+  - section: "build_up_1"
+    prompt: "White noise sweep rising in pitch and volume, impact sound effect"
+    volume: 0.6
+  - section: "drop_1"
+    prompt: "Explosive impact sound with a long reverb tail, background synth pads"
+    volume: 0.5
+  - section: "breakdown"
+    prompt: "Ethereal synth pad, atmospheric wash of sound"
+    volume: 0.7
+  - section: "build_up_2"
+    prompt: "Loud white noise riser, increasing tension, preparing for a drop"
+    volume: 0.7
+  - section: "drop_2"
+    prompt: "Huge cymbal crash and impact sound, atmospheric pads"
+    volume: 0.5
+  - section: "outro"
+    prompt: "Fading white noise, ambient drone"
+    volume: 0.3
+    fade_out: true
 
 processing:
   normalize: true
   normalize_db: -12 # A bit louder for EDM
   prevent_clipping: true
-  
+
 advanced:
   generation_params:
     temperature: 1.0

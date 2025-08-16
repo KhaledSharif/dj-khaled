@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from audiocraft.models.musicgen import MusicGen
 from audiocraft.data.audio import audio_write
 import logging
+import torchaudio
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -27,6 +28,7 @@ class SectionConfig:
     loop: bool = False
     start_offset: float = 0.0
     fade_out: bool = False
+    fade_in: bool = False
 
 
 class MusicProducer:
@@ -44,6 +46,7 @@ class MusicProducer:
         self.sample_rate = self.song_config.get("sample_rate", 32000)
         self.models_cache = {}
         self.generated_layers = {}
+        self.style_audio = None  # For style conditioning
 
         # Setup cache directory if enabled
         if self.advanced.get("use_cache", False):
@@ -54,21 +57,41 @@ class MusicProducer:
         """Get or load a MusicGen model with caching"""
         if model_name not in self.models_cache:
             logger.info(f"Loading model: {model_name}")
-            # Handle both old-style and new-style model names
-            if "/" not in model_name:
-                model = MusicGen.get_pretrained(model_name)
-            else:
-                model = MusicGen.get_pretrained(model_name)
+            model = MusicGen.get_pretrained(model_name)
 
             # Apply advanced generation parameters if specified
             if self.advanced.get("generation_params"):
                 params = self.advanced["generation_params"]
-                model.set_generation_params(
-                    temperature=params.get("temperature", 1.0),
-                    top_k=params.get("top_k", 250),
-                    top_p=params.get("top_p", 0.0),
-                    cfg_coef=params.get("cfg_coef", 3.0),
-                )
+
+                # Different parameters for different models
+                if "style" in model_name:
+                    # MusicGen-Style specific parameters
+                    model.set_generation_params(
+                        duration=30,  # max duration for style model
+                        use_sampling=params.get("use_sampling", True),
+                        temperature=params.get("temperature", 0.9),
+                        top_k=params.get("top_k", 250),
+                        top_p=params.get("top_p", 0.0),
+                        cfg_coef=params.get("cfg_coef", 3.0),
+                        cfg_coef_beta=params.get("cfg_coef_beta", None),
+                    )
+
+                    # Set style conditioning parameters
+                    style_params = self.advanced.get("style_params", {})
+                    model.set_style_conditioner_params(
+                        eval_q=style_params.get(
+                            "eval_q", 2
+                        ),  # 1-6, lower = less adherence
+                        excerpt_length=style_params.get("excerpt_length", 3.0),
+                    )
+                else:
+                    # Regular MusicGen parameters
+                    model.set_generation_params(
+                        temperature=params.get("temperature", 0.9),
+                        top_k=params.get("top_k", 250),
+                        top_p=params.get("top_p", 0.0),
+                        cfg_coef=params.get("cfg_coef", 3.0),
+                    )
 
             self.models_cache[model_name] = model
 
@@ -79,16 +102,12 @@ class MusicProducer:
         layer_name: str,
         section_name: str,
         prompt: str,
-        condition_audio: Optional[torch.Tensor] = None,
+        use_style: bool = False,
     ) -> str:
         """Generate a cache key for a generated section"""
         key_parts = [layer_name, section_name, prompt]
-        if condition_audio is not None:
-            # Add a hash of the conditioning audio
-            audio_hash = hashlib.md5(
-                condition_audio.cpu().numpy().tobytes()
-            ).hexdigest()[:8]
-            key_parts.append(audio_hash)
+        if use_style:
+            key_parts.append("styled")
         return "_".join(key_parts).replace(" ", "_").replace("/", "_")
 
     def load_from_cache(self, cache_key: str) -> Optional[torch.Tensor]:
@@ -112,233 +131,309 @@ class MusicProducer:
         with open(cache_path, "wb") as f:
             pickle.dump(audio, f)
 
+    def load_style_reference(self):
+        """Load a reference audio file for style conditioning"""
+        style_config = self.advanced.get("style_reference", {})
+        if style_config.get("path"):
+            logger.info(f"Loading style reference from: {style_config['path']}")
+            audio, sr = torchaudio.load(style_config["path"])
+            # Resample if necessary
+            if sr != self.sample_rate:
+                resampler = torchaudio.transforms.Resample(sr, self.sample_rate)
+                audio = resampler(audio)
+            self.style_audio = audio
+            return audio
+        return None
+
     def generate_section(
         self,
         model: MusicGen,
         prompt: str,
         duration: float,
-        condition_audio: Optional[torch.Tensor] = None,
-        use_full_conditioning: bool = True,
+        use_style: bool = False,
+        continuation_audio: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        """Generate a single section of audio"""
-        model.set_generation_params(duration=duration)
+        """Generate a single section of audio using best practices"""
 
-        if condition_audio is not None:
-            # Ensure conditioning audio is the right shape and on the right device
-            if condition_audio.dim() == 2:
-                condition_audio = condition_audio.unsqueeze(0)
+        # Limit duration to MusicGen's optimal range
+        actual_duration = min(duration, 30.0)
+        model.set_generation_params(duration=actual_duration)
 
-            # FIX 2: Option to use full conditioning audio or a representative sample
-            if use_full_conditioning:
-                # Use more conditioning audio for better context, but respect model limits
-                # MusicGen typically can handle around 30 seconds of prompt audio
-                total_samples = condition_audio.shape[-1]
-                # Limit to 8 seconds to avoid assertion errors, but more than the original 2 seconds
-                max_prompt_duration = min(8.0, duration * 0.5)  # Use up to 8 seconds or half the target duration
-                prompt_samples = min(int(self.sample_rate * max_prompt_duration), total_samples)
-                
-                if total_samples > prompt_samples:
-                    # Sample from the end portion for better continuity
-                    # This gives recent context while avoiding the assertion error
-                    prompt_audio = condition_audio[..., -prompt_samples:]
-                else:
-                    prompt_audio = condition_audio
-            else:
-                # Legacy behavior: use only the last few seconds
-                prompt_duration = min(2.0, duration / 4)
-                prompt_samples = int(self.sample_rate * prompt_duration)
-                
-                if condition_audio.shape[-1] > prompt_samples:
-                    prompt_audio = condition_audio[..., -prompt_samples:]
-                else:
-                    prompt_audio = condition_audio
+        if (
+            use_style
+            and self.style_audio is not None
+            and "style" in str(model.cfg.name)
+        ):
+            # Use MusicGen-Style with style conditioning
+            logger.info(f"Generating with style conditioning: '{prompt}'")
 
-            # Generate as continuation of the prompt audio
-            logger.info(f"Generating continuation with prompt: '{prompt}'")
-            wav = model.generate_continuation(
-                prompt_audio,
-                prompt_sample_rate=self.sample_rate,
-                descriptions=[prompt],
-                progress=True,
+            # Prepare style audio (3 samples for better results)
+            style_expanded = (
+                self.style_audio[None].expand(3, -1, -1)
+                if self.style_audio.dim() == 2
+                else self.style_audio.expand(3, -1, -1)
             )
-        else:
-            logger.info(f"Generating: '{prompt}'")
-            wav = model.generate([prompt])
 
-        return wav[0]  # Return first (and only) generation
+            # Generate with style and text
+            descriptions = [prompt] * 3 if prompt else [None] * 3
+            wav = model.generate_with_chroma(
+                descriptions=descriptions,
+                melody=style_expanded,
+                sample_rate=self.sample_rate,
+            )
+            # Average the 3 generations for more stable output
+            wav = wav.mean(dim=0)
+
+        elif continuation_audio is not None and duration <= 30:
+            # Check if we have enough audio for continuation
+            min_continuation_duration = 1.0  # Minimum 1 second needed
+            if continuation_audio.shape[-1] < int(
+                min_continuation_duration * self.sample_rate
+            ):
+                logger.warning(
+                    f"Previous audio too short for continuation, using text generation instead"
+                )
+                wav = model.generate([prompt])
+                wav = wav[0]
+            else:
+                # Use continuation only for extending in time (not layering)
+                logger.info(f"Generating temporal continuation: '{prompt}'")
+
+                # Ensure we don't use more context than the actual generation duration
+                # MusicGen needs the prompt to be shorter than what it will generate
+                max_context = min(
+                    actual_duration * 0.5,  # Use at most half of target duration
+                    continuation_audio.shape[-1]
+                    / self.sample_rate,  # Don't exceed available audio
+                    15.0,  # Cap at 15 seconds
+                )
+                context_samples = int(max_context * self.sample_rate)
+
+                if continuation_audio.shape[-1] > context_samples:
+                    prompt_audio = continuation_audio[..., -context_samples:]
+                else:
+                    prompt_audio = continuation_audio
+
+                if prompt_audio.dim() == 2:
+                    prompt_audio = prompt_audio.unsqueeze(0)
+
+                # Ensure the continuation makes sense (prompt must be shorter than generation)
+                prompt_duration = prompt_audio.shape[-1] / self.sample_rate
+                if prompt_duration >= actual_duration:
+                    logger.warning(
+                        f"Prompt audio ({prompt_duration:.1f}s) >= target duration ({actual_duration}s), using text generation"
+                    )
+                    wav = model.generate([prompt])
+                    wav = wav[0]
+                else:
+                    try:
+                        wav = model.generate_continuation(
+                            prompt_audio,
+                            prompt_sample_rate=self.sample_rate,
+                            descriptions=[prompt],
+                            progress=True,
+                        )
+                        wav = wav[0]
+                    except AssertionError as e:
+                        logger.warning(
+                            f"Continuation failed: {e}, falling back to text generation"
+                        )
+                        wav = model.generate([prompt])
+                        wav = wav[0]
+
+        else:
+            # Standard text-to-music generation (most common case)
+            logger.info(f"Generating from text: '{prompt}'")
+            wav = model.generate([prompt])
+            wav = wav[0]
+
+        return wav
 
     def apply_fade(
-        self, audio: torch.Tensor, fade_out: bool = False, fade_duration: float = 2.0
+        self,
+        audio: torch.Tensor,
+        fade_in: bool = False,
+        fade_out: bool = False,
+        fade_duration: float = 2.0,
     ) -> torch.Tensor:
-        """Apply fade in/out to audio"""
-        if audio.numel() == 0:  # Handle empty audio
+        """Apply fade in/out to audio with proper curve"""
+        if audio.numel() == 0:
             return audio
-            
+
         fade_samples = int(fade_duration * self.sample_rate)
         audio_length = audio.shape[-1]
-        
-        # Limit fade samples to audio length
-        fade_samples = min(fade_samples, audio_length)
-        
+        fade_samples = min(fade_samples, audio_length // 2)  # Don't fade more than half
+
+        if fade_in and fade_samples > 0:
+            # Exponential fade in for smoother start
+            fade_curve = torch.linspace(0, 1, fade_samples, device=audio.device) ** 2
+            if audio.dim() == 1:
+                audio[:fade_samples] *= fade_curve
+            else:
+                audio[..., :fade_samples] *= fade_curve
+
         if fade_out and fade_samples > 0:
-            # Create fade curve on the same device as the audio
-            fade_curve = torch.linspace(1, 0, fade_samples, device=audio.device)
+            # Exponential fade out for smoother end
+            fade_curve = torch.linspace(1, 0, fade_samples, device=audio.device) ** 2
             if audio.dim() == 1:
                 audio[-fade_samples:] *= fade_curve
             else:
                 audio[..., -fade_samples:] *= fade_curve
 
         return audio
-    
+
     def loop_with_crossfade(
-        self, audio: torch.Tensor, target_samples: int, crossfade_duration: float = 0.05
+        self,
+        audio: torch.Tensor,
+        target_samples: int,
+        crossfade_duration: float = 0.25,  # Increased default
+        bpm: int = 128,
     ) -> torch.Tensor:
-        """Loop audio with crossfade to prevent clicks and pops"""
+        """Loop audio with beat-aligned crossfade"""
         audio_length = audio.shape[-1]
         if audio_length >= target_samples:
             return audio[:target_samples]
-        
-        # Calculate crossfade samples
+
+        # Calculate beat-aligned crossfade
+        beat_duration = 60.0 / bpm  # seconds per beat
+        # Use 1 beat for crossfade by default, adjustable
+        crossfade_beats = max(1, int(crossfade_duration / beat_duration))
+        crossfade_duration = crossfade_beats * beat_duration
+
         crossfade_samples = int(crossfade_duration * self.sample_rate)
-        crossfade_samples = min(crossfade_samples, audio_length // 4)  # Don't crossfade more than 25% of the loop
-        
-        # Create the looped audio
+        crossfade_samples = min(crossfade_samples, audio_length // 4)
+
         device = audio.device
         result = torch.zeros(target_samples, device=device)
-        
-        # Calculate how many full loops we need
+
         effective_loop_length = audio_length - crossfade_samples
         num_full_loops = target_samples // effective_loop_length
-        
+
         current_pos = 0
         for i in range(num_full_loops + 1):
             if current_pos >= target_samples:
                 break
-                
+
             if i == 0:
-                # First iteration: place the full audio
                 end_pos = min(current_pos + audio_length, target_samples)
-                result[current_pos:end_pos] = audio[:end_pos - current_pos]
+                result[current_pos:end_pos] = audio[: end_pos - current_pos]
                 current_pos = audio_length - crossfade_samples
             else:
-                # Subsequent iterations: crossfade with previous
-                # Create fade curves
-                fade_in = torch.linspace(0, 1, crossfade_samples, device=device)
-                fade_out = torch.linspace(1, 0, crossfade_samples, device=device)
-                
-                # Apply crossfade at the loop point
+                # S-curve crossfade for smoother transitions
+                fade_in = torch.sigmoid(
+                    torch.linspace(-6, 6, crossfade_samples, device=device)
+                )
+                fade_out = 1 - fade_in
+
                 if current_pos + crossfade_samples <= target_samples:
-                    # Fade out the end of previous iteration
-                    result[current_pos:current_pos + crossfade_samples] *= fade_out
-                    # Add faded in beginning of new iteration
-                    result[current_pos:current_pos + crossfade_samples] += audio[:crossfade_samples] * fade_in
-                
-                # Add the rest of this loop iteration
-                remaining_samples = min(audio_length - crossfade_samples, target_samples - current_pos - crossfade_samples)
+                    result[current_pos : current_pos + crossfade_samples] *= fade_out
+                    result[current_pos : current_pos + crossfade_samples] += (
+                        audio[:crossfade_samples] * fade_in
+                    )
+
+                remaining_samples = min(
+                    audio_length - crossfade_samples,
+                    target_samples - current_pos - crossfade_samples,
+                )
                 if remaining_samples > 0:
                     end_pos = current_pos + crossfade_samples + remaining_samples
-                    result[current_pos + crossfade_samples:end_pos] = audio[crossfade_samples:crossfade_samples + remaining_samples]
-                
+                    result[current_pos + crossfade_samples : end_pos] = audio[
+                        crossfade_samples : crossfade_samples + remaining_samples
+                    ]
+
                 current_pos += effective_loop_length
-        
+
         return result
 
-    def mix_audio(
-        self, audio_list: List[Tuple[torch.Tensor, float]], target_length: int
-    ) -> torch.Tensor:
-        """Mix multiple audio tensors with specified volumes"""
-        # Use CPU for mixing to avoid device conflicts
-        mixed = torch.zeros(target_length)
-
-        for audio, volume in audio_list:
-            # Move to CPU for mixing
-            audio = audio.cpu()
-            
-            # Ensure audio is 1D
-            if audio.dim() > 1:
-                audio = audio.squeeze()
-
-            # Apply volume
-            audio = audio * volume
-
-            # Add to mix (handling different lengths)
-            mix_length = min(len(audio), target_length)
-            mixed[:mix_length] += audio[:mix_length]
-
-        # Prevent clipping if enabled
-        if self.processing.get("prevent_clipping", True):
-            max_val = torch.abs(mixed).max()
-            if max_val > 1.0:
-                logger.warning(
-                    f"Clipping detected (max: {max_val:.2f}), normalizing..."
-                )
-                mixed = mixed / max_val * 0.95
-
-        return mixed
-
     def generate_layer(
-        self, layer_config: Dict, condition_mix: Optional[torch.Tensor] = None
+        self, layer_config: Dict, previous_section_audio: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """Generate all sections for a single layer"""
         model_name = layer_config.get("model", "facebook/musicgen-small")
         model = self.get_model(model_name)
 
+        # Check if this layer should use style conditioning
+        use_style = (
+            layer_config.get("use_style", False) and self.style_audio is not None
+        )
+
         # Calculate total song duration
         total_duration = max(s["start"] + s["duration"] for s in self.sections.values())
         total_samples = int(total_duration * self.sample_rate)
 
-        # Initialize layer audio on the same device as the model
-        device = model.device if hasattr(model, 'device') else 'cuda' if torch.cuda.is_available() else 'cpu'
+        # Initialize layer audio
+        device = next(model.lm.parameters()).device if hasattr(model, "lm") else "cpu"
         layer_audio = torch.zeros(total_samples, device=device)
 
-        for section_config in layer_config.get("sections", []):
+        last_section_audio = None
+
+        for section_idx, section_config in enumerate(layer_config.get("sections", [])):
             section_name = section_config["section"]
             section_info = self.sections[section_name]
 
-            # FIX 1: start_offset should only affect when the audio starts, not its duration
             start_offset = section_config.get("start_offset", 0)
             start_time = section_info["start"] + start_offset
-            # Keep the full duration - the audio should play for the entire section duration
             duration = section_info["duration"]
             prompt = section_config["prompt"]
             volume = section_config.get("volume", 1.0)
             loop = section_config.get("loop", False)
             fade_out = section_config.get("fade_out", False)
+            fade_in = section_config.get("fade_in", False)
 
-            # Prepare conditioning audio for this section if needed
-            section_condition = None
-            if condition_mix is not None:
-                start_sample = int(start_time * self.sample_rate)
-                end_sample = int((start_time + duration) * self.sample_rate)
-                section_condition = condition_mix[start_sample:end_sample].unsqueeze(0)
+            # Check if we should use continuation (only for temporal extension)
+            use_continuation = (
+                section_config.get("use_continuation", False)
+                and last_section_audio is not None
+            )
 
             # Check cache
             cache_key = self.get_cache_key(
-                layer_config["name"], section_name, prompt, section_condition
+                layer_config["name"], section_name, prompt, use_style
             )
             section_audio = self.load_from_cache(cache_key)
 
             if section_audio is None:
-                # Generate the section with full conditioning option
-                use_full_conditioning = self.advanced.get("use_full_conditioning", True)
+                # Generate the section
                 section_audio = self.generate_section(
-                    model, prompt, duration, section_condition, use_full_conditioning
+                    model,
+                    prompt,
+                    duration,
+                    use_style=use_style,
+                    continuation_audio=last_section_audio if use_continuation else None,
                 )
                 self.save_to_cache(cache_key, section_audio)
 
-            # Apply effects
-            if fade_out:
-                section_audio = self.apply_fade(section_audio, fade_out=True)
+            # Apply fades
+            if fade_in or fade_out:
+                fade_duration = section_config.get("fade_duration", 2.0)
+                section_audio = self.apply_fade(
+                    section_audio,
+                    fade_in=fade_in,
+                    fade_out=fade_out,
+                    fade_duration=fade_duration,
+                )
 
             # Apply volume
             section_audio = section_audio * volume
 
-            # FIX 3: Handle looping with crossfade to prevent clicks
+            # Handle looping with beat-aligned crossfade
             if loop and section_audio.shape[-1] < int(duration * self.sample_rate):
                 required_samples = int(duration * self.sample_rate)
+                bpm = self.song_config.get("bpm", 128)
+                crossfade_duration = section_config.get("crossfade_duration", 0.25)
                 section_audio = self.loop_with_crossfade(
-                    section_audio, required_samples, crossfade_duration=0.05
+                    section_audio,
+                    required_samples,
+                    crossfade_duration=crossfade_duration,
+                    bpm=bpm,
                 )
+
+            # Store for potential continuation
+            last_section_audio = (
+                section_audio.unsqueeze(0)
+                if section_audio.dim() == 1
+                else section_audio
+            )
 
             # Place in the full layer timeline
             start_sample = int(start_time * self.sample_rate)
@@ -347,55 +442,87 @@ class MusicProducer:
             if section_audio.dim() > 1:
                 section_audio = section_audio.squeeze()
 
-            # Ensure both tensors are on the same device
             section_audio = section_audio.to(layer_audio.device)
 
-            # Mix into layer (in case of overlapping sections)
             layer_end = min(end_sample, total_samples)
             section_end = layer_end - start_sample
             layer_audio[start_sample:layer_end] += section_audio[:section_end]
 
         return layer_audio
 
+    def mix_audio(
+        self, audio_list: List[Tuple[torch.Tensor, float]], target_length: int
+    ) -> torch.Tensor:
+        """Mix multiple audio tensors with specified volumes and proper headroom"""
+        mixed = torch.zeros(target_length)
+
+        for audio, volume in audio_list:
+            audio = audio.cpu()
+
+            if audio.dim() > 1:
+                audio = audio.squeeze()
+
+            audio = audio * volume
+
+            mix_length = min(len(audio), target_length)
+            mixed[:mix_length] += audio[:mix_length]
+
+        # Advanced clipping prevention with soft limiting
+        if self.processing.get("prevent_clipping", True):
+            max_val = torch.abs(mixed).max()
+            if max_val > 0.95:  # Leave some headroom
+                # Soft limiting instead of hard clipping
+                threshold = 0.95
+                ratio = 4.0  # Compression ratio
+
+                over_threshold = (torch.abs(mixed) - threshold).clamp(min=0)
+                compressed = threshold + over_threshold / ratio
+                mixed = mixed.sign() * torch.minimum(torch.abs(mixed), compressed)
+
+                logger.warning(f"Applied soft limiting (peak was {max_val:.2f})")
+
+        return mixed
+
     def produce(self):
-        """Main production process"""
+        """Main production process with improved workflow"""
         logger.info(f"Starting production of: {self.song_config['name']}")
+
+        # Load style reference if configured
+        if self.advanced.get("style_reference", {}).get("path"):
+            self.load_style_reference()
 
         # Calculate total duration
         total_duration = max(s["start"] + s["duration"] for s in self.sections.values())
+
+        # Warn if sections are too long
+        for section_name, section_info in self.sections.items():
+            if section_info["duration"] > 30:
+                logger.warning(
+                    f"Section '{section_name}' is {section_info['duration']}s long. "
+                    "Consider splitting into smaller sections for better quality."
+                )
+
         total_samples = int(total_duration * self.sample_rate)
 
         # Initialize the mix
         layer_audios = []
 
-        # Generate each layer sequentially
+        # Generate each layer
         for i, layer_config in enumerate(self.layers):
             layer_name = layer_config["name"]
             logger.info(f"Processing layer {i+1}/{len(self.layers)}: {layer_name}")
 
-            # Determine conditioning audio
-            condition_audio = None
-            if "condition_on" in layer_config and layer_config["condition_on"]:
-                # Create a mix of specified layers for conditioning
-                condition_layers = []
-                for cond_layer_name in layer_config["condition_on"]:
-                    if cond_layer_name in self.generated_layers:
-                        condition_layers.append(
-                            (self.generated_layers[cond_layer_name], 1.0)
-                        )
+            # Generate the layer (no conditioning between layers)
+            layer_audio = self.generate_layer(layer_config)
 
-                if condition_layers:
-                    condition_audio = self.mix_audio(condition_layers, total_samples)
-
-            # Generate the layer
-            layer_audio = self.generate_layer(layer_config, condition_audio)
-
-            # Move to CPU for consistency in mixing
             layer_audio = layer_audio.cpu()
 
-            # Store for future conditioning
+            # Store for reference
             self.generated_layers[layer_name] = layer_audio
-            layer_audios.append((layer_audio, 1.0))  # Full volume for final mix
+
+            # Apply layer-level volume if specified
+            layer_volume = layer_config.get("volume", 1.0)
+            layer_audios.append((layer_audio, layer_volume))
 
         # Create final mix
         logger.info("Creating final mix...")
@@ -404,21 +531,23 @@ class MusicProducer:
         # Apply master volume
         final_mix = final_mix * self.song_config.get("master_volume", 1.0)
 
-        # FIX 4: Choose normalization strategy - either manual OR audio_write's strategy
-        normalization_strategy = self.processing.get("normalization_strategy", "loudness")
-        
+        # Enhanced normalization
+        normalization_strategy = self.processing.get(
+            "normalization_strategy", "loudness"
+        )
+
         if normalization_strategy == "manual":
-            # Manual normalization based on peak or target dB
-            if self.processing.get("normalize", True):
-                target_db = self.processing.get("normalize_db", -14)
-                logger.info(f"Manually normalizing to {target_db} dB peak")
-                max_val = torch.abs(final_mix).max()
-                target_peak = 10 ** (target_db / 20)
-                if max_val > 0:
-                    final_mix = final_mix * (target_peak / max_val)
-            write_strategy = "peak"  # Use peak strategy to preserve our manual normalization
+            target_db = self.processing.get("normalize_db", -14)
+            logger.info(f"Manually normalizing to {target_db} dB")
+
+            # RMS normalization for more consistent loudness
+            rms = torch.sqrt(torch.mean(final_mix**2))
+            target_rms = 10 ** (target_db / 20)
+            if rms > 0:
+                final_mix = final_mix * (target_rms / rms)
+
+            write_strategy = "peak"
         else:
-            # Let audio_write handle normalization (default behavior)
             logger.info(f"Using audio_write {normalization_strategy} normalization")
             write_strategy = normalization_strategy
 
@@ -426,7 +555,6 @@ class MusicProducer:
         output_path = Path(self.song_config.get("output_file", "output.wav"))
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Reshape for audio_write (needs 2D tensor)
         final_mix = final_mix.unsqueeze(0)
 
         logger.info(f"Saving to: {output_path}")
@@ -435,11 +563,12 @@ class MusicProducer:
             final_mix.cpu(),
             self.sample_rate,
             strategy=write_strategy,
+            loudness_compressor=True,  # Add compression for better dynamics
         )
 
         logger.info("Production complete!")
 
-        # Also save individual layers if requested
+        # Export stems if requested
         if self.config.get("export_stems", False):
             stems_dir = output_path.parent / f"{output_path.stem}_stems"
             stems_dir.mkdir(exist_ok=True)
@@ -451,6 +580,7 @@ class MusicProducer:
                     layer_audio.unsqueeze(0).cpu(),
                     self.sample_rate,
                     strategy="loudness",
+                    loudness_compressor=True,
                 )
                 logger.info(f"Exported stem: {stem_path}")
 
@@ -466,17 +596,14 @@ def main():
 
     args = parser.parse_args()
 
-    # Load config and override stem export if specified
     with open(args.config, "r") as f:
         config = yaml.safe_load(f)
 
     if args.export_stems:
         config["export_stems"] = True
-        # Save back temporarily
         with open(args.config, "w") as f:
             yaml.dump(config, f)
 
-    # Run production
     producer = MusicProducer(args.config)
     producer.produce()
 
