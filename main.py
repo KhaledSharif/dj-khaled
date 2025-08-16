@@ -273,9 +273,16 @@ class MusicProducer:
             start_time = section_info["start"]
             volume = section_config.get("volume", 1.0)
 
-            continuation_audio = (
-                last_section_audio if section_config.get("use_continuation") else None
-            )
+            continuation_audio = None
+            if section_config.get("use_continuation") and last_section_audio is not None:
+                # Trim continuation audio to be 80% of target duration to ensure it's shorter
+                max_continuation_duration = duration * 0.8
+                max_continuation_samples = int(max_continuation_duration * self.sample_rate)
+                if last_section_audio.shape[-1] > max_continuation_samples:
+                    continuation_audio = last_section_audio[..., -max_continuation_samples:]
+                    logger.info(f"Trimmed continuation audio from {last_section_audio.shape[-1]/self.sample_rate:.1f}s to {max_continuation_samples/self.sample_rate:.1f}s")
+                else:
+                    continuation_audio = last_section_audio
 
             cache_key = self.get_cache_key(
                 layer_name, section_name, prompt, use_style, continuation_audio is not None
