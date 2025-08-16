@@ -499,7 +499,7 @@ class TestLayerGeneration(unittest.TestCase):
         intro_samples = 2 * 32000
         # Check that some audio exists in the intro section
         intro_audio = result[:intro_samples]
-        self.assertGreater(torch.abs(intro_audio).mean(), 0)
+        self.assertGreater(torch.abs(intro_audio).mean().item(), 0)
 
 
 class TestProduceIntegration(unittest.TestCase):
@@ -628,10 +628,9 @@ class TestProduceIntegration(unittest.TestCase):
         producer = MusicProducer(self.config_path)
 
         # Mock generate_section to return actual tensor
-        def mock_generate_section(model, prompt, duration, **kwargs):
-            return torch.ones(int(duration * 32000)) * 2.0
-
-        producer.generate_section = mock_generate_section
+        producer.generate_section = MagicMock(
+            side_effect=lambda model, prompt, duration, **kwargs: torch.ones(int(duration * 32000)) * 2.0
+        )
         producer.produce()
 
         # Check that audio_write was called

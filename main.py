@@ -140,7 +140,7 @@ class MusicProducer:
         style_config = self.advanced.get("style_reference", {})
         if style_config.get("path"):
             logger.info(f"Loading style reference from: {style_config['path']}")
-            audio, sr = torchaudio.load(style_config["path"])
+            audio, sr = torchaudio.load(style_config["path"])  # type: ignore[attr-defined]
             # Resample if necessary
             if sr != self.sample_rate:
                 resampler = torchaudio.transforms.Resample(sr, self.sample_rate)
@@ -180,6 +180,7 @@ class MusicProducer:
             use_style
             and self.style_audio is not None
             and hasattr(model, 'cfg')
+            and model.cfg is not None
             and hasattr(model.cfg, 'name')
             and "style" in str(model.cfg.name)
         ):
@@ -194,14 +195,16 @@ class MusicProducer:
             )
 
             # Generate with style and text
-            descriptions = [prompt] * 3 if prompt else [None] * 3
+            descriptions = [prompt] * 3 if prompt else [""] * 3
             try:
                 wav = model.generate_with_chroma(
                     descriptions=descriptions,
-                    melody=style_expanded,
-                    sample_rate=self.sample_rate,
+                    melody_wavs=style_expanded,
+                    melody_sample_rate=self.sample_rate,
                 )
                 # Average the 3 generations for more stable output
+                if isinstance(wav, tuple):
+                    wav = wav[0]  # Extract tensor from tuple if needed
                 wav = wav.mean(dim=0)
             except (AttributeError, TypeError) as e:
                 logger.error(f"Model error during style generation: {e}")
