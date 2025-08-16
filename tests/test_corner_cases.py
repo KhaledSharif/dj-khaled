@@ -75,7 +75,7 @@ class TestNumericalEdgeCases(unittest.TestCase):
         audio = torch.ones(1000)
         result = self.producer.mix_audio([(audio, 1e10)], 1000)
         # Should prevent clipping
-        self.assertLessEqual(torch.abs(result).max(), 1.0)
+        self.assertLessEqual(torch.abs(result).max().item(), 1.0)
 
         # Test with very small volume
         result = self.producer.mix_audio([(audio, 1e-10)], 1000)
@@ -97,7 +97,7 @@ class TestNumericalEdgeCases(unittest.TestCase):
         audio_inf = torch.tensor([float("inf"), 1.0, 2.0])
         result = self.producer.mix_audio([(audio_inf, 1.0)], 3)
         # Should trigger clipping prevention
-        self.assertLessEqual(torch.abs(result).max(), 1.0)
+        self.assertLessEqual(torch.abs(result).max().item(), 1.0)
 
 
 class TestConfigurationValidation(unittest.TestCase):
@@ -221,7 +221,8 @@ class TestConfigurationValidation(unittest.TestCase):
         loaded = producer.load_from_cache(cache_key)
         
         self.assertIsNotNone(loaded)
-        self.assertTrue(torch.allclose(test_tensor, loaded))
+        if loaded is not None:
+            self.assertTrue(torch.allclose(test_tensor, loaded))
 
     def test_circular_conditioning_dependency(self):
         """Test circular dependencies in layer conditioning"""
@@ -310,7 +311,7 @@ class TestAudioProcessingBoundaries(unittest.TestCase):
         # Should handle gracefully and fade entire audio
         self.assertEqual(len(result), 3200)
         # Last sample should be close to 0 (faded out)
-        self.assertLess(result[-1], 0.1)
+        self.assertLess(result[-1].item(), 0.1)
 
     def test_looping_with_zero_length_generation(self):
         """Test looping when generated audio has zero length"""
@@ -591,16 +592,13 @@ class TestIntegrationAndRealWorld(unittest.TestCase):
             original_generate = producer.generate_section
             conditioning_log = []
 
-            def log_conditioning(model, prompt, duration, **kwargs):
-                # Check for backward-compatible condition_audio parameter
-                condition = kwargs.get('condition_audio')
-                conditioning_log.append(
-                    {"prompt": prompt, "has_condition": condition is not None}
+            producer.generate_section = MagicMock(
+                side_effect=lambda model, prompt, duration, **kwargs: (
+                    conditioning_log.append(
+                        {"prompt": prompt, "has_condition": kwargs.get('condition_audio') is not None}
+                    ) or torch.ones(int(duration * 32000))
                 )
-                # Return appropriate length audio
-                return torch.ones(int(duration * 32000))
-
-            producer.generate_section = log_conditioning
+            )
 
             producer.produce()
 
