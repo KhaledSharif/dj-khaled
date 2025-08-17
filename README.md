@@ -6,6 +6,7 @@ A powerful layered music generation system built on Meta's AudioCraft/MusicGen m
 
 - **Layered Composition**: Build complex musical pieces with multiple synchronized layers
 - **Conditional Generation**: Each layer can be conditioned on previous layers for coherent composition
+- **Seamless Transitions**: Automatic crossfade blending between sections for smooth, DJ-style transitions
 - **Advanced Audio Processing**: Includes crossfade looping, fade effects, and intelligent normalization
 - **Caching System**: Smart caching for faster iterative music generation
 - **YAML Configuration**: Simple, declarative configuration for defining musical structure
@@ -101,6 +102,10 @@ advanced:
     temperature: 1.0
     top_k: 250
     cfg_coef: 3.0
+  transitions:
+    enable_auto_continuation: true  # Enable smooth transitions
+    overlap_duration: 2.0  # Crossfade duration in seconds
+    continuation_window: 6.0  # Context from previous section
 ```
 
 ## Key Features Explained
@@ -115,7 +120,8 @@ The `condition_on` parameter allows layers to use previous layers as context, cr
 
 ### Audio Effects
 
-- **Looping with Crossfade**: Seamlessly loop short generations to fill longer sections
+- **Crossfade Transitions**: Automatic 2-second crossfades between sections for seamless transitions
+- **Looping with Crossfade**: Seamlessly loop short generations to fill longer sections  
 - **Fade Effects**: Apply fade in/out to audio sections
 - **Volume Control**: Per-section volume adjustment
 
@@ -187,6 +193,8 @@ The system automatically uses CUDA if available. Generation is significantly fas
 3. **Start simple**: Begin with drums/bass, then add complexity
 4. **Use caching**: Enable caching when iterating on compositions
 5. **Adjust temperature**: Lower values (0.8-0.9) for more predictable output
+6. **Enable transitions**: Use `use_continuation: true` for smooth section changes
+7. **Write transition-aware prompts**: Include language about evolving/morphing from previous sections
 
 ## License
 

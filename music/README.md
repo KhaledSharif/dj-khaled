@@ -68,6 +68,7 @@ layers:
         loop: false           # Optional
         fade_out: false       # Optional
         start_offset: 0.0     # Optional
+        use_continuation: true  # Enable smooth transitions
 ```
 
 ## Musical Guidelines
@@ -82,6 +83,21 @@ Maintain consistent BPM across all prompts in a song:
 - Very Fast: 140+ BPM (drum & bass, hardcore)
 
 ### Prompt Writing Tips
+
+#### Transition-Aware Prompts
+
+For smooth transitions between sections, write prompts that describe the evolution:
+
+```yaml
+# Good - describes transition
+prompt: "Smoothly transitioning from minimal kick into driving four-on-the-floor"
+prompt: "Naturally evolving from simple bass notes into rhythmic bassline"
+prompt: "Seamlessly exploding from buildup into powerful drop"
+
+# Less smooth - abrupt change
+prompt: "Hard-hitting kick drum"
+prompt: "Energetic bassline"
+```
 
 #### Drums
 
@@ -256,6 +272,10 @@ advanced:
     top_k: 250         # Vocabulary limit
     top_p: 0.0         # Nucleus sampling
     cfg_coef: 3.0      # Prompt adherence (1-5)
+  transitions:
+    enable_auto_continuation: true  # Auto-enable transitions
+    overlap_duration: 2.0          # Crossfade duration (seconds)
+    continuation_window: 6.0       # Context window (seconds)
 ```
 
 ## Creating New Configurations
@@ -318,8 +338,10 @@ Plan:
 
 ### Abrupt Transitions
 
-- Use fade effects
-- Overlap sections slightly
+- Enable `use_continuation: true` on sections
+- Write transition-aware prompts (e.g., "evolving from", "transitioning to")
+- Use fade effects for additional smoothing
+- Adjust `overlap_duration` and `continuation_window` settings
 - Condition new layers on existing ones
 
 ### Inconsistent Rhythm
